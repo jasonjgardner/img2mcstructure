@@ -68,6 +68,8 @@ export async function constructDecoded(
 
   const [width, height, depth] = size;
 
+  const memo = new Map<number, [string, number]>();
+
   /**
    * Block indices primary layer
    */
@@ -82,11 +84,16 @@ export async function constructDecoded(
 
     for (const [x, y, c] of img.iterateWithColors()) {
       const rgbColor = imagescript.Image.colorToRGB(c);
-      const nearest = getNearestColor(rgbColor, palette)?.id ?? DEFAULT_BLOCK;
+
+      const [memoizedNearest, memoizedIdx] = memo.get(rgbColor) ?? [null, null];
+
+      const nearest = memoizedNearest ??
+        getNearestColor(rgbColor, palette)?.id ?? DEFAULT_BLOCK;
       const key = (z * img.width * img.height) + (y * img.width) +
         (img.width - x - 1) + z;
 
-      let blockIdx = blockPalette.findIndex(({ name }) => name === nearest);
+      let blockIdx = memoizedIdx ??
+        blockPalette.findIndex(({ name }) => name === nearest);
 
       if (blockIdx === -1) {
         blockIdx = blockPalette.push(
@@ -96,6 +103,8 @@ export async function constructDecoded(
             states: {},
           },
         ) - 1;
+
+        memo.set(rgbColor, [nearest, blockIdx]);
       }
 
       layer[key] = blockIdx;
@@ -201,7 +210,7 @@ export async function decodeUrl(
 
   return !href.endsWith(".gif")
     ? [await imagescript.Image.decode(data)]
-    : (await imagescript.GIF.decode(data, false));
+    : [...(await imagescript.GIF.decode(data, false))];
 }
 
 export async function decodeImageFile(
@@ -226,7 +235,7 @@ export async function decodeBase64(
 
   return !base64.startsWith("data:image/gif")
     ? [await imagescript.Image.decode(data)]
-    : (await imagescript.GIF.decode(data, false));
+    : [...(await imagescript.GIF.decode(data, false))];
 }
 
 export async function decode(
