@@ -1,6 +1,6 @@
 import type { IBlock, IMcStructure, RGB } from "./types.ts";
 import { hex2rgb, imagescript, nbt } from "./deps.ts";
-import { BLOCK_VERSION } from "./constants.ts";
+import { BLOCK_VERSION, DEFAULT_BLOCK, MAX_HEIGHT } from "./constants.ts";
 
 export function colorDistance(color1: RGB, color2: RGB) {
   return Math.sqrt(
@@ -82,8 +82,7 @@ export async function constructDecoded(
 
     for (const [x, y, c] of img.iterateWithColors()) {
       const rgbColor = imagescript.Image.colorToRGB(c);
-      const nearestColor = getNearestColor(rgbColor, palette);
-      const nearest = nearestColor?.id ?? "air";
+      const nearest = getNearestColor(rgbColor, palette)?.id ?? DEFAULT_BLOCK;
       const key = (z * img.width * img.height) + (y * img.width) +
         (img.width - x - 1);
 
@@ -233,13 +232,14 @@ export async function decodeBase64(
 export async function decode(
   path: string,
 ): Promise<imagescript.GIF | imagescript.Image[]> {
+  let img = null;
   if (path.startsWith("http")) {
-    return await decodeUrl(new URL(path));
+    img = await decodeUrl(new URL(path));
+  } else if (path.startsWith("data:image")) {
+    img = await decodeBase64(path);
+  } else {
+    img = await decodeImageFile(path);
   }
 
-  if (path.startsWith("data:image")) {
-    return await decodeBase64(path);
-  }
-
-  return await decodeImageFile(path);
+  return img.map((i) => i.resize(imagescript.Image.RESIZE_AUTO, MAX_HEIGHT));
 }
