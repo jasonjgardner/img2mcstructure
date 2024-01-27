@@ -21,7 +21,7 @@ export default async function main(
 if (import.meta.main) {
   const structureId = nanoid(6);
   if (Deno.args.length > 0) {
-    const skip = Deno.args[3].split(",");
+    const skip = Deno.args[3]?.split(",") ?? [];
 
     await Deno.writeFile(
       `./${structureId}.mcstructure`,
