@@ -1,10 +1,7 @@
-import type { IBlock, RGB } from "./types.ts";
 import { createStructure, decode } from "./mod.ts";
-import db from "./db.json" assert { type: "json" };
-import { BLOCK_VERSION } from "./constants.ts";
-import { nanoid } from "https://deno.land/x/nanoid/mod.ts";
-import { toFileUrl } from "./deps.ts";
+import { nanoid } from "./deps.ts";
 import getPalette from "./_palette.ts";
+import db from "./db.json" assert { type: "json" };
 
 export default async function main(
   imgSrc: string,
@@ -21,9 +18,39 @@ export default async function main(
 }
 
 if (import.meta.main) {
-  const structureName = nanoid(6);
-  await Deno.writeFile(
-    `./structures/${structureName}.mcstructure`,
-    await main(Deno.args[0], structureName, Deno.args[1] as "x" | "y" | "z"),
-  );
+  const structureId = nanoid(6);
+  if (Deno.args.length > 0) {
+    await Deno.writeFile(
+      `./structures/${structureId}.mcstructure`,
+      await main(
+        Deno.args[0],
+        structureId,
+        (Deno.args[1] ?? "x") as "x" | "y" | "z",
+      ),
+    );
+    Deno.exit(0);
+  }
+
+  await Deno.serve(async (req) => {
+    // Handle POST
+    if (req.method === "POST") {
+      const { img, name, axis } = await req.json();
+
+      try {
+        const data = await main(img, name ?? structureId, axis);
+        const filename = `${name ?? structureId}.mcstructure`;
+
+        return new Response(data, {
+          headers: {
+            "Content-Disposition": `attachment; filename="${filename}"`,
+            "Content-Type": "application/octet-stream",
+          },
+        });
+      } catch (err) {
+        return new Response(err.message, { status: 500 });
+      }
+    }
+
+    return new Response("Error", { status: 400 });
+  });
 }
