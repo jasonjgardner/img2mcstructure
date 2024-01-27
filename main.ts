@@ -18,6 +18,34 @@ export default async function main(
   return await createStructure(structureName, img, blockPalette, axis);
 }
 
+async function getFormData(req: Request) {
+  if (!req.headers.get("content-type")?.includes("multipart/form-data")) {
+    const { img, name, axis } = await req.json();
+    return { img, name, axis };
+  }
+
+  const formData = await req.formData();
+  const img = formData.get("img");
+  const name = formData.get("name");
+  const axis = formData.get("axis") ?? "x";
+
+  // If image is a file, convert it to base64
+  if (img instanceof File) {
+    const reader = new FileReader();
+    const buffer = await img.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    const blob = new Blob([bytes]);
+    const base64 = await new Promise<string>((resolve) => {
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsDataURL(blob);
+    });
+
+    return { img: base64, name, axis };
+  }
+
+  return { img, name, axis };
+}
+
 if (import.meta.main) {
   const structureId = nanoid(6);
   if (Deno.args.length > 0) {
@@ -38,7 +66,7 @@ if (import.meta.main) {
   await Deno.serve(async (req) => {
     // Handle POST
     if (req.method === "POST") {
-      const { img, name, axis } = await req.json();
+      const { img, name, axis } = await getFormData(req);
 
       try {
         const data = await main(img, name ?? structureId, axis);

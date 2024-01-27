@@ -84,7 +84,7 @@ export async function constructDecoded(
       const rgbColor = imagescript.Image.colorToRGB(c);
       const nearest = getNearestColor(rgbColor, palette)?.id ?? DEFAULT_BLOCK;
       const key = (z * img.width * img.height) + (y * img.width) +
-        (img.width - x - 1);
+        (img.width - x - 1) + z;
 
       let blockIdx = blockPalette.findIndex(({ name }) => name === nearest);
 
@@ -211,7 +211,7 @@ export async function decodeImageFile(
 
   return !path.endsWith(".gif")
     ? [await imagescript.Image.decode(data)]
-    : (await imagescript.GIF.decode(data, false));
+    : [...(await imagescript.GIF.decode(data, false))];
 }
 
 export async function decodeBase64(
