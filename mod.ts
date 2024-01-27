@@ -241,5 +241,9 @@ export async function decode(
     img = await decodeImageFile(path);
   }
 
-  return img.map((i) => i.resize(imagescript.Image.RESIZE_AUTO, MAX_HEIGHT));
+  return img.map((i) =>
+    i.height > MAX_HEIGHT
+      ? i.resize(imagescript.Image.RESIZE_AUTO, MAX_HEIGHT)
+      : i
+  );
 }
