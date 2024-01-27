@@ -65,7 +65,7 @@ if (import.meta.main) {
 
   await Deno.serve(async (req) => {
     // Handle POST
-    if (req.method === "POST") {
+    if (req.method === "POST" && req.url === "/v1/structure") {
       const { img, name, axis } = await getFormData(req);
 
       try {
