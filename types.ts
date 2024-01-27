@@ -19,3 +19,23 @@ export interface IBlock {
   hexColor: string;
   color: RGB | RGBA;
 }
+
+export interface IMcStructure {
+  format_version: number;
+  size: [number, number, number];
+  structure_world_origin: [number, number, number];
+  structure: {
+    block_indices: [number[], number[]];
+    entities: Record<string, unknown>[];
+    palette: {
+      default: {
+        block_palette: Array<{
+          version: number;
+          name: string;
+          states: Record<string, unknown>;
+        }>;
+        block_position_data: Record<string, Record<string, number | string>>;
+      };
+    };
+  };
+}

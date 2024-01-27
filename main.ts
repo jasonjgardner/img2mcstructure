@@ -11,7 +11,9 @@ const blockPalette = getPalette(db);
 if (import.meta.main) {
   const structureName = nanoid(6);
 
-  const img = await decode(Deno.args[0] ?? "./cache/bedrock-samples/bedrock-samples-1.20.50.3/resource_pack/pack_icon.png")
+  const img = await decode(
+    Deno.args[0]!,
+  );
   const axis = (Deno.args[1] ?? "x") as "x" | "y" | "z";
 
   await Deno.writeFile(

@@ -2,7 +2,7 @@ import type { IBlock, RGB } from "./types.ts";
 import { BLOCK_VERSION } from "./constants.ts";
 
 export default function main(
-  db: { [key: string]: string }
+  db: { [key: string]: string },
 ) {
   const blockPalette: IBlock[] = [];
 
