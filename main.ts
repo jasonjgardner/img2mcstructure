@@ -6,18 +6,24 @@ import { nanoid } from "https://deno.land/x/nanoid/mod.ts";
 import { toFileUrl } from "./deps.ts";
 import getPalette from "./_palette.ts";
 
-const blockPalette = getPalette(db);
+export default async function main(
+  imgSrc: string,
+  structureName: string,
+  axis: "x" | "y" | "z" = "x",
+) {
+  const blockPalette = getPalette(db);
+
+  const img = await decode(
+    imgSrc,
+  );
+
+  return await createStructure(structureName, img, blockPalette, axis);
+}
 
 if (import.meta.main) {
   const structureName = nanoid(6);
-
-  const img = await decode(
-    Deno.args[0]!,
-  );
-  const axis = (Deno.args[1] ?? "x") as "x" | "y" | "z";
-
   await Deno.writeFile(
     `./structures/${structureName}.mcstructure`,
-    await createStructure(structureName, img, blockPalette, axis),
+    await main(Deno.args[0], structureName, Deno.args[1] as "x" | "y" | "z"),
   );
 }
