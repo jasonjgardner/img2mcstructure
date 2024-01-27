@@ -2,6 +2,26 @@ import type { IBlock, RGB } from "./types.ts";
 import { hex2rgb, imagescript, nbt } from "./deps.ts";
 import { BLOCK_VERSION } from "./constants.ts";
 
+interface IMcStructure {
+  format_version: number;
+  size: [number, number, number];
+  structure_world_origin: [number, number, number];
+  structure: {
+    block_indices: [number[], number[]];
+    entities: Record<string, unknown>[];
+    palette: {
+      default: {
+        block_palette: Array<{
+          version: number;
+          name: string;
+          states: Record<string, unknown>;
+        }>;
+        block_position_data: Record<string, Record<string, number | string>>;
+      };
+    };
+  };
+}
+
 export function colorDistance(color1: RGB, color2: RGB) {
   return Math.sqrt(
     Math.pow(color1[0] - color2[0], 2) + Math.pow(color1[1] - color2[1], 2) +
@@ -25,7 +45,7 @@ export function getNearestColor(
 }
 
 /**
- * Convert GIF / Image to .mcstructure file
+ * Convert GIF / Image to .mcstructure file format
  * @param name - Name of .mcstructure file and structure itself
  * @param frames - The GIF or image source as an array
  * @param palette - The list of blocks permitted to be used in the structure
@@ -34,7 +54,6 @@ export async function constructDecoded(
   name: string,
   frames: imagescript.GIF | Array<imagescript.Image | imagescript.Frame>,
   palette: IBlock[],
-  axis = "y",
 ) {
   /**
    * Block palette
@@ -103,7 +122,7 @@ export async function constructDecoded(
     }
   }
 
-  const tag = {
+  const tag: IMcStructure = {
     format_version: 1,
     size,
     structure_world_origin: [0, 0, 0],
@@ -122,27 +141,64 @@ export async function constructDecoded(
   return tag;
 }
 
-export async function writeStructure(
-  json: string,
-  name: string,
+export function rotateStructure(
+  structure: IMcStructure,
+  axis: "x" | "y" | "z",
 ) {
-  const nbtBuffer = await nbt.write(nbt.parse(json), {
-    name: name.replace(/[\s\/]/g, "_").toLowerCase(),
-    endian: "little",
-    compression: null,
-    bedrockLevel: null,
-  });
+  const { size, structure: { block_indices: [layer] } } = structure;
+  const [width, height, depth] = size;
 
-  await Deno.writeFile(`${name}.mcstructure`, nbtBuffer);
+  const newLayer = Array.from({ length: width * height * depth }, () => -1);
+
+  for (let z = 0; z < depth; z++) {
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const key = (z * width * height) + (y * width) + (width - x - 1);
+
+        switch (axis) {
+          case "x":
+            newLayer[key] = layer[(z * width * height) + (y * width) + x];
+            break;
+          case "y":
+            newLayer[key] = layer[
+              (z * width * height) + ((height - y - 1) *
+                width) +
+              x
+            ];
+            break;
+          case "z":
+            newLayer[key] = layer[
+              ((depth - z - 1) * width * height) +
+              (y * width) + x
+            ];
+            break;
+        }
+      }
+    }
+  }
+
+  structure.structure.block_indices[0] = newLayer;
+
+  return structure;
 }
 
 export async function createStructure(
   name: string,
   frames: imagescript.GIF | Array<imagescript.Image | imagescript.Frame>,
   palette: IBlock[],
+  axis: "x" | "y" | "z" = "x",
 ) {
   const decoded = await constructDecoded(name, frames, palette);
-  await writeStructure(JSON.stringify(decoded), name);
+  const structure = axis !== "x" ? rotateStructure(decoded, axis) : decoded;
+
+  const nbtBuffer = await nbt.write(nbt.parse(JSON.stringify(structure)), {
+    name: name.replace(/[\s\/]/g, "_").toLowerCase(),
+    endian: "little",
+    compression: null,
+    bedrockLevel: null,
+  });
+
+  return nbtBuffer;
 }
 
 export async function decodeUrl(
@@ -164,4 +220,31 @@ export async function decodeImageFile(
   return !path.endsWith(".gif")
     ? [await imagescript.Image.decode(data)]
     : (await imagescript.GIF.decode(data, false));
+}
+
+export async function decodeBase64(
+  base64: string,
+): Promise<imagescript.GIF | imagescript.Image[]> {
+  const data = new Uint8Array(atob(base64.replace(
+    /^data:image\/(png|jpeg|gif);base64,/,
+    "",
+  )).split("").map((x) => x.charCodeAt(0)));
+
+  return !base64.startsWith("data:image/gif")
+    ? [await imagescript.Image.decode(data)]
+    : (await imagescript.GIF.decode(data, false));
+}
+
+export async function decode(
+  path: string,
+): Promise<imagescript.GIF | imagescript.Image[]> {
+  if (path.startsWith("http")) {
+    return await decodeUrl(new URL(path));
+  }
+  
+  if (path.startsWith("data:image")) {
+    return await decodeBase64(path);
+  }
+  
+  return await decodeImageFile(path);
 }
