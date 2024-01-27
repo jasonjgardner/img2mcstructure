@@ -1,26 +1,6 @@
-import type { IBlock, RGB } from "./types.ts";
+import type { IBlock, IMcStructure, RGB } from "./types.ts";
 import { hex2rgb, imagescript, nbt } from "./deps.ts";
 import { BLOCK_VERSION } from "./constants.ts";
-
-interface IMcStructure {
-  format_version: number;
-  size: [number, number, number];
-  structure_world_origin: [number, number, number];
-  structure: {
-    block_indices: [number[], number[]];
-    entities: Record<string, unknown>[];
-    palette: {
-      default: {
-        block_palette: Array<{
-          version: number;
-          name: string;
-          states: Record<string, unknown>;
-        }>;
-        block_position_data: Record<string, Record<string, number | string>>;
-      };
-    };
-  };
-}
 
 export function colorDistance(color1: RGB, color2: RGB) {
   return Math.sqrt(
@@ -104,7 +84,8 @@ export async function constructDecoded(
       const rgbColor = imagescript.Image.colorToRGB(c);
       const nearestColor = getNearestColor(rgbColor, palette);
       const nearest = nearestColor?.id ?? "air";
-      const key = (z * width * height) + (y * width) + (width - x - 1);
+      const key = (z * img.width * img.height) + (y * img.width) +
+        (img.width - x - 1);
 
       let blockIdx = blockPalette.findIndex(({ name }) => name === nearest);
 
@@ -177,6 +158,18 @@ export function rotateStructure(
     }
   }
 
+  if (axis === "x") {
+    structure.size = [depth, height, width];
+  }
+
+  if (axis === "y") {
+    structure.size = [width, depth, height];
+  }
+
+  if (axis === "z") {
+    structure.size = [width, height, depth];
+  }
+
   structure.structure.block_indices[0] = newLayer;
 
   return structure;
@@ -225,10 +218,12 @@ export async function decodeImageFile(
 export async function decodeBase64(
   base64: string,
 ): Promise<imagescript.GIF | imagescript.Image[]> {
-  const data = new Uint8Array(atob(base64.replace(
-    /^data:image\/(png|jpeg|gif);base64,/,
-    "",
-  )).split("").map((x) => x.charCodeAt(0)));
+  const data = new Uint8Array(
+    atob(base64.replace(
+      /^data:image\/(png|jpeg|gif);base64,/,
+      "",
+    )).split("").map((x) => x.charCodeAt(0)),
+  );
 
   return !base64.startsWith("data:image/gif")
     ? [await imagescript.Image.decode(data)]
@@ -241,10 +236,10 @@ export async function decode(
   if (path.startsWith("http")) {
     return await decodeUrl(new URL(path));
   }
-  
+
   if (path.startsWith("data:image")) {
     return await decodeBase64(path);
   }
-  
+
   return await decodeImageFile(path);
 }
