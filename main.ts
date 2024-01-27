@@ -21,7 +21,7 @@ if (import.meta.main) {
   const structureId = nanoid(6);
   if (Deno.args.length > 0) {
     await Deno.writeFile(
-      `./structures/${structureId}.mcstructure`,
+      `./${structureId}.mcstructure`,
       await main(
         Deno.args[0],
         structureId,
