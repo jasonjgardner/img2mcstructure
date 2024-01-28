@@ -1,4 +1,4 @@
-import type { IBlock, IMcStructure, RGB } from "./types.ts";
+import type { Axis, IBlock, IMcStructure, RGB } from "./types.ts";
 import { hex2rgb, imagescript, nbt } from "./deps.ts";
 import {
   BLOCK_VERSION,
@@ -7,6 +7,7 @@ import {
   MAX_HEIGHT,
   MAX_WIDTH,
 } from "./constants.ts";
+import rotateStructure from "./_rotate.ts";
 
 export function colorDistance(color1: RGB, color2: RGB) {
   return Math.sqrt(
@@ -32,12 +33,10 @@ export function getNearestColor(
 
 /**
  * Convert GIF / Image to .mcstructure file format
- * @param name - Name of .mcstructure file and structure itself
  * @param frames - The GIF or image source as an array
  * @param palette - The list of blocks permitted to be used in the structure
  */
-export async function constructDecoded(
-  name: string,
+export function constructDecoded(
   frames: imagescript.GIF | Array<imagescript.Image | imagescript.Frame>,
   palette: IBlock[],
 ) {
@@ -65,12 +64,6 @@ export async function constructDecoded(
     frames[0].height,
     Math.min(MAX_DEPTH, frames.length),
   ];
-
-  // if (frames[0].width !== frames[0].height) {
-  //   const newSize = Math.max(frames[0].width, frames[0].height);
-  //   size[0] = newSize;
-  //   size[1] = newSize;
-  // }
 
   const [width, height, depth] = size;
 
@@ -113,7 +106,7 @@ export async function constructDecoded(
       }
 
       const key = (z * img.width * img.height) + (y * img.width) +
-        (img.width - x - 1) + z;
+        (img.width - x - 1);
 
       layer[key] = blockIdx;
     }
@@ -138,132 +131,19 @@ export async function constructDecoded(
   return tag;
 }
 
-export function rotateStructure(
-  structure: IMcStructure,
-  axis: "x" | "y" | "z",
-) {
-  const { size, structure: { block_indices: [layer] } } = structure;
-  const [width, height, depth] = size;
-
-  const newLayer = Array.from({ length: width * height * depth }, () => -1);
-
-  for (let z = 0; z < depth; z++) {
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const key = (z * width * height) + (y * width) + (width - x - 1);
-
-        switch (axis) {
-          case "x":
-            newLayer[key] = layer[(z * width * height) + (y * width) + x];
-            break;
-          case "y":
-            newLayer[key] = layer[
-              (z * width * height) + ((height - y - 1) *
-                width) +
-              x
-            ];
-            break;
-          case "z":
-            newLayer[key] = layer[
-              ((depth - z - 1) * width * height) +
-              (y * width) + x
-            ];
-            break;
-        }
-      }
-    }
-  }
-
-  if (axis === "x") {
-    structure.size = [depth, height, width];
-  }
-
-  if (axis === "y") {
-    structure.size = [width, depth, height];
-  }
-
-  if (axis === "z") {
-    structure.size = [width, height, depth];
-  }
-
-  structure.structure.block_indices[0] = newLayer;
-
-  return structure;
-}
-
 export async function createStructure(
-  name: string,
   frames: imagescript.GIF | Array<imagescript.Image | imagescript.Frame>,
   palette: IBlock[],
-  axis: "x" | "y" | "z" = "x",
+  axis: Axis = "x",
 ) {
-  const decoded = await constructDecoded(name, frames, palette);
+  const decoded = await constructDecoded(frames, palette);
   const structure = axis !== "x" ? rotateStructure(decoded, axis) : decoded;
 
   const nbtBuffer = await nbt.write(nbt.parse(JSON.stringify(structure)), {
-    name: name.replace(/[\s\/]/g, "_").toLowerCase(),
     endian: "little",
     compression: null,
     bedrockLevel: null,
   });
 
   return nbtBuffer;
-}
-
-export async function decodeUrl(
-  { href }: URL,
-): Promise<imagescript.GIF | imagescript.Image[]> {
-  const res = await fetch(href);
-  const data = new Uint8Array(await res.arrayBuffer());
-
-  return !href.endsWith(".gif")
-    ? [await imagescript.Image.decode(data)]
-    : [...(await imagescript.GIF.decode(data, false))];
-}
-
-export async function decodeImageFile(
-  path: string,
-): Promise<imagescript.GIF | imagescript.Image[]> {
-  const data = await Deno.readFile(path);
-
-  return !path.endsWith(".gif")
-    ? [await imagescript.Image.decode(data)]
-    : [...(await imagescript.GIF.decode(data, false))];
-}
-
-export async function decodeBase64(
-  base64: string,
-): Promise<imagescript.GIF | imagescript.Image[]> {
-  const data = new Uint8Array(
-    atob(base64.replace(
-      /^data:image\/(png|jpeg|gif);base64,/,
-      "",
-    )).split("").map((x) => x.charCodeAt(0)),
-  );
-
-  return !base64.startsWith("data:image/gif")
-    ? [await imagescript.Image.decode(data)]
-    : [...(await imagescript.GIF.decode(data, false))];
-}
-
-export async function decode(
-  path: string,
-): Promise<imagescript.GIF | imagescript.Image[]> {
-  let img = null;
-
-  if (path.startsWith("http")) {
-    img = await decodeUrl(new URL(path));
-  }
-
-  if (path.startsWith("data:image")) {
-    img = await decodeBase64(path);
-  }
-
-  return (img ?? await decodeImageFile(path)).map((i) =>
-    i.height > MAX_HEIGHT
-      ? i.resize(imagescript.Image.RESIZE_AUTO, MAX_HEIGHT)
-      : i.width > MAX_WIDTH
-      ? i.resize(MAX_WIDTH, imagescript.Image.RESIZE_AUTO)
-      : i
-  );
 }

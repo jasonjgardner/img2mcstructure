@@ -1,3 +1,4 @@
+export type Axis = "x" | "y" | "z";
 export type RGB = [number, number, number];
 export type RGBA = [number, number, number, number];
 
