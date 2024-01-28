@@ -10,7 +10,7 @@ $settings = @{
     img="https://th.bing.com/th/id/OIG1.E6oiABYYho.M3NJjMwgj?pid=ImgGn";
     axis="y"
 }
-iwr -Method POST -Uri https://mcstructure.deno.dev -Body ($settings | ConvertTo-Json) -OutFile "demo.mcstructure"
+iwr -Method POST -Uri https://mcstructure.deno.dev/v1/structure -Body ($settings | ConvertTo-Json) -OutFile "demo.mcstructure"
 ```
 
 Images will be clamped to 32px. To create a larger structure, download Deno and
