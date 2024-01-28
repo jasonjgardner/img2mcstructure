@@ -3,3 +3,5 @@ export const DEFAULT_BLOCK = "minecraft:air";
 export const MAX_HEIGHT = Deno.env.get("DENO_DEPLOYMENT_ID") !== undefined
   ? 64
   : 256;
+export const MAX_WIDTH = 256;
+export const MAX_DEPTH = 24;
