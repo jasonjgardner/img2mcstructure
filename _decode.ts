@@ -1,5 +1,5 @@
 import { imagescript } from "./deps.ts";
-import { MAX_HEIGHT, MAX_WIDTH } from "./constants.ts";
+import { MAX_HEIGHT, MAX_WIDTH } from "./_constants.ts";
 
 async function decodeUrl(
   { href }: URL,

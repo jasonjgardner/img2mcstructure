@@ -6,7 +6,7 @@ import {
   MAX_DEPTH,
   MAX_HEIGHT,
   MAX_WIDTH,
-} from "./constants.ts";
+} from "./_constants.ts";
 import rotateStructure from "./_rotate.ts";
 
 export function colorDistance(color1: RGB, color2: RGB) {

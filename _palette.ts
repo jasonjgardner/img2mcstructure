@@ -1,5 +1,5 @@
 import type { IBlock, RGB } from "./types.ts";
-import { BLOCK_VERSION } from "./constants.ts";
+import { BLOCK_VERSION } from "./_constants.ts";
 
 export default function getPalette(
   db: { [key: string]: string },
