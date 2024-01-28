@@ -1,7 +1,6 @@
 import type { Axis } from "../types.ts";
 import { nanoid } from "../deps.ts";
 import main from "../main.ts";
-import db from "../db.json" assert { type: "json" };
 
 const structureId = nanoid(6);
 

@@ -3,7 +3,8 @@
   "redirects": {
     "https://deno.land/x/nano_jsx/mod.ts": "https://deno.land/x/nano_jsx@v0.1.0/mod.ts",
     "https://deno.land/x/nanoid/mod.ts": "https://deno.land/x/nanoid@v3.0.0/mod.ts",
-    "https://deno.land/x/oak/mod.ts": "https://deno.land/x/oak@v10.4.0/mod.ts"
+    "https://deno.land/x/oak/mod.ts": "https://deno.land/x/oak@v10.4.0/mod.ts",
+    "https://deno.land/x/qrcode/mod.ts": "https://deno.land/x/qrcode@v2.0.0/mod.ts"
   },
   "remote": {
     "https://cdn.jsdelivr.net/npm/nbtify/dist/compression.js": "525ccd73049b064144723d6342ce939c922c673e599ffbd1010e8fb420c68206",
@@ -214,6 +215,8 @@
     "https://deno.land/x/oak@v10.4.0/tssCompare.ts": "27f45f507ef21ba7b727b6c66b491543e6e1815c17194bf0b1d7a1ea5ab8027b",
     "https://deno.land/x/oak@v10.4.0/util.ts": "77f1d0aa270191319139a8368f39a73ce46aa3ed0d8fe286bdcbcf668828b313",
     "https://deno.land/x/path_to_regexp@v6.2.0/index.ts": "e94c04a44bbecac99ff2db2d831afe98b423e627b775cb57fc7935f848c64c51",
+    "https://deno.land/x/qrcode@v2.0.0/mod.ts": "3e693e8190d5fb4c6ab68a14a1a9473c325d5244fd83240b49cdecdf5fc18a1b",
+    "https://deno.land/x/qrcode@v2.0.0/qrcode.js": "138f870978e21843f48d8b0855b69de6ebf430c3ab9f57c3fa2746d6fba45bf1",
     "https://esm.sh/minecraft-data@3.59.3": "03a3aa0a5962778f55cfcfc92bc104858c22dae2aeed0656aa07c81d857acd1a",
     "https://esm.sh/v135/minecraft-data@3.59.3/denonext/minecraft-data.mjs": "e510d9faf17024c56c1d19e98e4cb6aaa0b2ee9da31eff7e5b8f16776c67afd9"
   }
