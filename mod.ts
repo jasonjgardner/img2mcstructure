@@ -1,6 +1,12 @@
 import type { IBlock, IMcStructure, RGB } from "./types.ts";
 import { hex2rgb, imagescript, nbt } from "./deps.ts";
-import { BLOCK_VERSION, DEFAULT_BLOCK, MAX_HEIGHT } from "./constants.ts";
+import {
+  BLOCK_VERSION,
+  DEFAULT_BLOCK,
+  MAX_DEPTH,
+  MAX_HEIGHT,
+  MAX_WIDTH,
+} from "./constants.ts";
 
 export function colorDistance(color1: RGB, color2: RGB) {
   return Math.sqrt(
@@ -57,14 +63,14 @@ export async function constructDecoded(
   const size: [number, number, number] = [
     frames[0].width,
     frames[0].height,
-    frames.length,
+    Math.min(MAX_DEPTH, frames.length),
   ];
 
-  if (frames[0].width !== frames[0].height) {
-    const newSize = Math.max(frames[0].width, frames[0].height);
-    size[0] = newSize;
-    size[1] = newSize;
-  }
+  // if (frames[0].width !== frames[0].height) {
+  //   const newSize = Math.max(frames[0].width, frames[0].height);
+  //   size[0] = newSize;
+  //   size[1] = newSize;
+  // }
 
   const [width, height, depth] = size;
 
@@ -83,14 +89,13 @@ export async function constructDecoded(
     img.rotate(90);
 
     for (const [x, y, c] of img.iterateWithColors()) {
-      const rgbColor = imagescript.Image.colorToRGB(c);
+      const [memoizedNearest, memoizedIdx] = memo.get(c) ?? [null, null];
 
-      const [memoizedNearest, memoizedIdx] = memo.get(rgbColor) ?? [null, null];
+      const [r, g, b, a] = imagescript.Image.colorToRGBA(c);
 
       const nearest = memoizedNearest ??
-        getNearestColor(rgbColor, palette)?.id ?? DEFAULT_BLOCK;
-      const key = (z * img.width * img.height) + (y * img.width) +
-        (img.width - x - 1) + z;
+        (a < 128 ? "air" : getNearestColor([r, g, b], palette)?.id ??
+          DEFAULT_BLOCK);
 
       let blockIdx = memoizedIdx ??
         blockPalette.findIndex(({ name }) => name === nearest);
@@ -104,8 +109,11 @@ export async function constructDecoded(
           },
         ) - 1;
 
-        memo.set(rgbColor, [nearest, blockIdx]);
+        memo.set(c, [nearest, blockIdx]);
       }
+
+      const key = (z * img.width * img.height) + (y * img.width) +
+        (img.width - x - 1) + z;
 
       layer[key] = blockIdx;
     }
@@ -242,17 +250,20 @@ export async function decode(
   path: string,
 ): Promise<imagescript.GIF | imagescript.Image[]> {
   let img = null;
+
   if (path.startsWith("http")) {
     img = await decodeUrl(new URL(path));
-  } else if (path.startsWith("data:image")) {
-    img = await decodeBase64(path);
-  } else {
-    img = await decodeImageFile(path);
   }
 
-  return img.map((i) =>
+  if (path.startsWith("data:image")) {
+    img = await decodeBase64(path);
+  }
+
+  return (img ?? await decodeImageFile(path)).map((i) =>
     i.height > MAX_HEIGHT
       ? i.resize(imagescript.Image.RESIZE_AUTO, MAX_HEIGHT)
+      : i.width > MAX_WIDTH
+      ? i.resize(MAX_WIDTH, imagescript.Image.RESIZE_AUTO)
       : i
   );
 }
