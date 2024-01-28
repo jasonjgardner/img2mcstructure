@@ -20,7 +20,7 @@ export default async function main(
 
 async function getFormData(req: Request) {
   if (!req.headers.get("content-type")?.includes("multipart/form-data")) {
-    const { img, name, axis } = await req.json();
+    const { img, name, axis } = JSON.parse(await req.text());
     return { img, name, axis };
   }
 
