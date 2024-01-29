@@ -8,7 +8,7 @@ await Deno.writeFile(
   `./stained_glass_window_${structureId}.mcstructure`,
   await main(
     Deno.args[0],
-    Deno.args[1] ?? "x" as Axis,
+    (Deno.args[1] ?? "x") as Axis,
     ({ id }) => id.includes("glass"),
   ),
 );

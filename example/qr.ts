@@ -1,4 +1,4 @@
-import { qrcode } from "https://deno.land/x/qrcode/mod.ts";
+import { qrcode } from "https://deno.land/x/qrcode@v2.0.0/mod.ts";
 import type { Axis } from "../types.ts";
 import { nanoid } from "../deps.ts";
 import main from "../main.ts";
@@ -15,7 +15,7 @@ await Deno.writeFile(
   `./qr_${structureId}.mcstructure`,
   await main(
     qr,
-    Deno.args[1] ?? "x" as Axis,
+    (Deno.args[1] ?? "x") as Axis,
     (
       { id },
     ) => ((id.includes("black") || id.includes("white") ||

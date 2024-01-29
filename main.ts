@@ -1,5 +1,4 @@
-import type { Axis } from "./types.ts";
-import { nanoid } from "./deps.ts";
+import type { Axis, IBlock } from "./types.ts";
 import { createStructure } from "./mod.ts";
 import decode from "./_decode.ts";
 import getPalette from "./_palette.ts";
@@ -18,16 +17,16 @@ export default async function main(
 }
 
 if (import.meta.main) {
-  const structureId = nanoid(6);
   if (Deno.args.length > 0) {
+    const fileName = Deno.args[0].split("/").pop()?.split(".")[0] ?? "img";
     const skip = Deno.args[3]?.split(",") ?? [];
 
     await Deno.writeFile(
-      `./${structureId}.mcstructure`,
+      `./${fileName}_${Date.now()}.mcstructure`,
       await main(
         Deno.args[0],
         (Deno.args[1] ?? "x") as Axis,
-        (block) => !skip.includes(block.name),
+        (block) => !skip.includes(block.id),
       ),
     );
     Deno.exit(0);
@@ -40,15 +39,14 @@ if (import.meta.main) {
       req.method === "POST" && pathname === "/v1/structure" &&
       req.headers.get("content-type") === "application/json"
     ) {
-      const { img, name, axis } = await req.json();
+      const { img, axis } = await req.json();
 
       try {
         const data = await main(img, axis);
-        const filename = `${name ?? structureId}.mcstructure`;
 
         return new Response(data, {
           headers: {
-            "Content-Disposition": `attachment; filename="${filename}"`,
+            "Content-Disposition": 'attachment; filename="img.mcstructure"',
             "Content-Type": "application/octet-stream",
           },
         });

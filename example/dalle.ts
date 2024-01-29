@@ -35,14 +35,21 @@ export default async function main(
 if (import.meta.main) {
   const imagePrompt = prompt("Image prompt: ");
 
+  if (!imagePrompt) {
+    console.error("Image prompt is required.");
+    Deno.exit(1);
+  }
+
   try {
+    const file = `./dalle_${nanoid(6)}.mcstructure`;
     await Deno.writeFile(
-      `./dalle_${nanoid(6)}.mcstructure`,
+      file,
       await main(
         imagePrompt,
         (Deno.args[0] ?? "x") as Axis,
       ),
     );
+    console.log(`Created ${file}`);
   } catch (err) {
     console.error(err);
   }

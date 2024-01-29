@@ -8,7 +8,7 @@ await Deno.writeFile(
   `./glowing_${structureId}.mcstructure`,
   await main(
     Deno.args[0],
-    Deno.args[1] ?? "x" as Axis,
+    (Deno.args[1] ?? "x") as Axis,
     ({ id }) =>
       id.startsWith("rainbow:") && (id.includes("lit") || id.includes("lamp")),
   ),
