@@ -1,34 +1,47 @@
-import type { Axis, IBlock } from "./types.ts";
+import type { Axis } from "./types.ts";
 import { createStructure } from "./mod.ts";
 import decode from "./_decode.ts";
 import createPalette from "./_palette.ts";
-import { basename, extname, join } from "./deps.ts";
-import db from "./db.json" with { type: "json" };
+import { basename, extname, join, toFileUrl } from "./deps.ts";
 
 export default async function main(
   imgSrc: string,
   axis: Axis = "x",
-  filterBlocks?: (block: IBlock) => boolean,
+  db: Record<string, string>,
 ) {
-  const palette = createPalette(db);
-  const blockPalette = filterBlocks ? palette.filter(filterBlocks) : palette;
-
   const img = await decode(imgSrc);
 
-  return await createStructure(img, blockPalette, axis);
+  if (!img.length) {
+    throw new Error("Image is empty.");
+  }
+
+  const blocks = createPalette(db);
+
+  if (!blocks.length) {
+    throw new Error("Palette is empty.");
+  }
+
+  return await createStructure(img, blocks, axis);
 }
 
 if (import.meta.main) {
+  const [src, axis, db] = Deno.args;
+  const colorDb: Record<string, string> = (await import(
+    db ?? toFileUrl(join(Deno.cwd(), "db.json")),
+    {
+      with: { type: "json" },
+    }
+  )).default;
+
   if (Deno.args.length > 0) {
-    const fileName = basename(Deno.args[0], extname(Deno.args[0]));
-    const skip = Deno.args[3]?.split(",") ?? [];
+    const fileName = basename(src, extname(src));
 
     await Deno.writeFile(
       join(Deno.cwd(), `${fileName}_${Date.now()}.mcstructure`),
       await main(
-        Deno.args[0],
-        (Deno.args[1] ?? "x") as Axis,
-        (block) => !skip.includes(block.id),
+        src,
+        (axis ?? "x") as Axis,
+        colorDb,
       ),
     );
     Deno.exit(0);
@@ -44,7 +57,7 @@ if (import.meta.main) {
       const { img, axis } = await req.json();
 
       try {
-        const data = await main(img, axis);
+        const data = await main(img, axis, colorDb);
 
         return new Response(data, {
           headers: {
