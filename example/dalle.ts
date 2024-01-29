@@ -3,6 +3,7 @@ import { nanoid } from "../deps.ts";
 import create from "../main.ts";
 import OpenAI from "npm:openai";
 import { load } from "https://deno.land/std@0.212.0/dotenv/mod.ts";
+import db from "../db/rainbow.json" with { type: "json" };
 
 const { OPENAI_API_KEY } = await load();
 
@@ -28,6 +29,7 @@ export default async function main(
 
   return await create(
     imageUrl,
+    db,
     axis,
   );
 }

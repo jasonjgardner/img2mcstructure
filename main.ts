@@ -6,8 +6,8 @@ import { basename, extname, join, toFileUrl } from "./deps.ts";
 
 export default async function main(
   imgSrc: string,
-  axis: Axis = "x",
   db: Record<string, string>,
+  axis: Axis = "x",
 ) {
   const img = await decode(imgSrc);
 
@@ -27,7 +27,7 @@ export default async function main(
 if (import.meta.main) {
   const [src, axis, db] = Deno.args;
   const colorDb: Record<string, string> = (await import(
-    db ?? toFileUrl(join(Deno.cwd(), "db.json")),
+    db ?? toFileUrl(join(Deno.cwd(), "db", "minecraft.json")),
     {
       with: { type: "json" },
     }
@@ -40,8 +40,8 @@ if (import.meta.main) {
       join(Deno.cwd(), `${fileName}_${Date.now()}.mcstructure`),
       await main(
         src,
-        (axis ?? "x") as Axis,
         colorDb,
+        (axis ?? "x") as Axis,
       ),
     );
     Deno.exit(0);
@@ -57,7 +57,7 @@ if (import.meta.main) {
       const { img, axis } = await req.json();
 
       try {
-        const data = await main(img, axis, colorDb);
+        const data = await main(img, colorDb, axis);
 
         return new Response(data, {
           headers: {
