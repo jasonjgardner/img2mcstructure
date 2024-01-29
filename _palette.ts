@@ -1,8 +1,14 @@
 import type { IBlock, RGB } from "./types.ts";
 import { BLOCK_VERSION } from "./_constants.ts";
 
-export default function getPalette(
-  db: { [key: string]: string },
+/**
+ * Converts database of colors to palette of block data.
+ * @see {@link IBlock}
+ * @param db Block ID/Color database.
+ * @returns Array of blocks.
+ */
+export default function createPalette(
+  db: Record<string, string>,
 ) {
   const blockPalette: IBlock[] = [];
 

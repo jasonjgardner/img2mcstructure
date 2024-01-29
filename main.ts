@@ -1,15 +1,17 @@
 import type { Axis, IBlock } from "./types.ts";
 import { createStructure } from "./mod.ts";
 import decode from "./_decode.ts";
-import getPalette from "./_palette.ts";
-import db from "./db.json" assert { type: "json" };
+import createPalette from "./_palette.ts";
+import { basename, extname, join } from "./deps.ts";
+import db from "./db.json" with { type: "json" };
 
 export default async function main(
   imgSrc: string,
   axis: Axis = "x",
   filterBlocks?: (block: IBlock) => boolean,
 ) {
-  const blockPalette = getPalette(db).filter(filterBlocks ?? (() => true));
+  const palette = createPalette(db);
+  const blockPalette = filterBlocks ? palette.filter(filterBlocks) : palette;
 
   const img = await decode(imgSrc);
 
@@ -18,11 +20,11 @@ export default async function main(
 
 if (import.meta.main) {
   if (Deno.args.length > 0) {
-    const fileName = Deno.args[0].split("/").pop()?.split(".")[0] ?? "img";
+    const fileName = basename(Deno.args[0], extname(Deno.args[0]));
     const skip = Deno.args[3]?.split(",") ?? [];
 
     await Deno.writeFile(
-      `./${fileName}_${Date.now()}.mcstructure`,
+      join(Deno.cwd(), `${fileName}_${Date.now()}.mcstructure`),
       await main(
         Deno.args[0],
         (Deno.args[1] ?? "x") as Axis,
@@ -32,7 +34,7 @@ if (import.meta.main) {
     Deno.exit(0);
   }
 
-  await Deno.serve(async (req) => {
+  Deno.serve(async (req) => {
     const { pathname } = new URL(req.url);
 
     if (

@@ -3,6 +3,7 @@ export { hex2rgb } from "https://crux.land/api/get/3RdawE.ts";
 export * as nbt from "https://cdn.jsdelivr.net/npm/nbtify/dist/index.min.js";
 export {
   basename,
+  extname,
   join,
   toFileUrl,
 } from "https://deno.land/std@0.212.0/path/mod.ts";

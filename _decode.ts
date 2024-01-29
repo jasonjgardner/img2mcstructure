@@ -1,8 +1,15 @@
 import { imagescript } from "./deps.ts";
 import { MAX_HEIGHT, MAX_WIDTH } from "./_constants.ts";
 
-type DecodedFrames = imagescript.GIF | imagescript.Image[];
+type DecodedFrames =
+  | imagescript.GIF
+  | Array<imagescript.Image | imagescript.Frame>;
 
+/**
+ * Decode an image from a URL
+ * @param imgSrc Image URL
+ * @returns Array of decoded frames
+ */
 async function decodeUrl(
   { href }: URL,
 ): Promise<DecodedFrames> {
@@ -14,6 +21,11 @@ async function decodeUrl(
     : [...(await imagescript.GIF.decode(data, false))] as imagescript.GIF;
 }
 
+/**
+ * Decode an image from a file path
+ * @param path Image file path
+ * @returns Array of decoded frames
+ */
 async function decodeImageFile(
   path: string,
 ): Promise<DecodedFrames> {
@@ -24,6 +36,11 @@ async function decodeImageFile(
     : [...(await imagescript.GIF.decode(data, false))] as imagescript.GIF;
 }
 
+/**
+ * Decode an image from a base64 string
+ * @param base64 Base64 string
+ * @returns Array of decoded frames
+ */
 async function decodeBase64(
   base64: string,
 ): Promise<DecodedFrames> {
@@ -39,6 +56,12 @@ async function decodeBase64(
     : [...(await imagescript.GIF.decode(data, false))] as imagescript.GIF;
 }
 
+/**
+ * Decode an image from a URL, file path, or base64 string.\
+ * Returns an array of resized frames.
+ * @param path Image URL, file path, or base64 string
+ * @returns Array of decoded frames
+ */
 export default async function decode(
   path: string,
 ): Promise<DecodedFrames> {

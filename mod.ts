@@ -3,12 +3,17 @@ import { hex2rgb, imagescript, nbt } from "./deps.ts";
 import {
   BLOCK_VERSION,
   DEFAULT_BLOCK,
+  MASK_BLOCK,
   MAX_DEPTH,
-  MAX_HEIGHT,
-  MAX_WIDTH,
 } from "./_constants.ts";
 import rotateStructure from "./_rotate.ts";
 
+/**
+ * Calculate the distance between two RGB colors.
+ * @param color1 RGB color to compare
+ * @param color2 RGB color to compare
+ * @returns Distance between the two colors
+ */
 export function colorDistance(color1: RGB, color2: RGB) {
   return Math.sqrt(
     Math.pow(color1[0] - color2[0], 2) + Math.pow(color1[1] - color2[1], 2) +
@@ -16,6 +21,12 @@ export function colorDistance(color1: RGB, color2: RGB) {
   );
 }
 
+/**
+ * Attempt to find the nearest block to the given color.
+ * @param color RGB color to compare
+ * @param palette Array of blocks to compare against
+ * @returns The block which is closest to the given color
+ */
 export function getNearestColor(
   color: RGB,
   palette: IBlock[],
@@ -29,6 +40,40 @@ export function getNearestColor(
     },
     [Number.POSITIVE_INFINITY, palette[0]],
   )[1];
+}
+
+/**
+ * Get the appropriate block for the given pixel color.
+ * @param c Pixel color
+ * @param palette Block palette
+ * @returns Nearest, masked, or default block
+ */
+function convertBlock(
+  c: number,
+  palette: IBlock[],
+): Pick<IBlock, "id" | "states"> {
+  const [r, g, b, a] = imagescript.Image.colorToRGBA(c);
+
+  if (a < 128) {
+    return {
+      id: MASK_BLOCK,
+      states: {},
+    };
+  }
+
+  const nearestBlock = getNearestColor([r, g, b], palette);
+
+  if (!nearestBlock) {
+    return {
+      id: DEFAULT_BLOCK,
+      states: {},
+    };
+  }
+
+  return {
+    id: nearestBlock.id,
+    states: nearestBlock.states ?? {},
+  };
 }
 
 /**
@@ -78,17 +123,12 @@ export function constructDecoded(
   for (let z = 0; z < depth; z++) {
     const img = frames[z];
 
-    // Hack to rotate the image because I'm too dumb to figure out how to refactor it
+    // FIXME: Image must be rotated 90 degrees for some reason
     img.rotate(90);
 
     for (const [x, y, c] of img.iterateWithColors()) {
       const [memoizedNearest, memoizedIdx] = memo.get(c) ?? [null, null];
-
-      const [r, g, b, a] = imagescript.Image.colorToRGBA(c);
-
-      const nearest = memoizedNearest ??
-        (a < 128 ? "air" : getNearestColor([r, g, b], palette)?.id ??
-          DEFAULT_BLOCK);
+      const nearest = memoizedNearest ?? convertBlock(c, palette).id;
 
       let blockIdx = memoizedIdx ??
         blockPalette.findIndex(({ name }) => name === nearest);
@@ -131,19 +171,29 @@ export function constructDecoded(
   return tag;
 }
 
+/**
+ * Convert GIF / Image to .mcstructure file format
+ * @param frames Decoded frames
+ * @param palette Blocks to use in the structure
+ * @param axis The axis to rotate the structure over. Defaults to "x"
+ * @param name Optional name for the structure. Defaults to "img2mcstructure"
+ * @returns NBT data as a buffer
+ */
 export async function createStructure(
   frames: imagescript.GIF | Array<imagescript.Image | imagescript.Frame>,
   palette: IBlock[],
   axis: Axis = "x",
+  name = "img2mcstructure",
 ) {
-  const decoded = await constructDecoded(frames, palette);
-  const structure = axis !== "x" ? rotateStructure(decoded, axis) : decoded;
+  const decoded = constructDecoded(frames, palette);
+  const structure = JSON.stringify(
+    axis !== "x" ? rotateStructure(decoded, axis) : decoded,
+  );
 
-  const nbtBuffer = await nbt.write(nbt.parse(JSON.stringify(structure)), {
+  return await nbt.write(nbt.parse(structure), {
+    name,
     endian: "little",
     compression: null,
     bedrockLevel: null,
   });
-
-  return nbtBuffer;
 }
