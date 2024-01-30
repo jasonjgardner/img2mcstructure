@@ -7,7 +7,7 @@ import React, {
   useState,
 } from "https://esm.sh/react@18.2.0";
 import ReactDOM from "https://esm.sh/react-dom@18.2.0";
-
+import type { PaletteSource } from "../../types.ts";
 const SVC_URL = "/v1/structure";
 
 function DropImage({ onChange }: { onChange: (file: File) => void }) {
@@ -69,11 +69,38 @@ function DropImage({ onChange }: { onChange: (file: File) => void }) {
   );
 }
 
+function SelectPalette({ onChange }: { onChange: (value: string[]) => void }) {
+  const options = [{
+    name: "Vanilla Minecraft",
+    value: "minecraft",
+  }, {
+    name: "RAINBOW III!!!",
+    value: "rainbow",
+  }, {
+    name: "RGB",
+    value: "rgb",
+  }];
+  return (
+    <select
+      className="h-10 w-full rounded-md border border-input px-3 py-2 text-sm"
+      multiple
+      onChange={(e) => {
+        onChange(Array.from(e.target.selectedOptions).map((o) => o.value));
+      }}
+    >
+      {options.map((option) => (
+        <option value={option.value}>{option.name}</option>
+      ))}
+    </select>
+  );
+}
+
 function App() {
   const [size, setSize] = useState(256);
   const [axis, setAxis] = useState<"x" | "y">("y");
   const [image, setImage] = useState<File | null>(null);
   const [title, setTitle] = useState("");
+  const [db, setDb] = useState<PaletteSource[]>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -100,6 +127,7 @@ function App() {
       body: JSON.stringify({
         img: canvasRef.current?.toDataURL("image/png"),
         axis,
+        db,
       }),
     });
 
@@ -111,11 +139,23 @@ function App() {
     a.download = `${title.toLowerCase().replace(/\s+/g, "_")}.mcstructure`;
     document.body.appendChild(a);
     a.click();
-  }, [title, axis]);
+  }, [title, axis, db]);
+
+  const handlePaletteChange = async (palettes: string[]) => {
+    setDb([]);
+    const selected = (await Promise.all(
+      palettes.map(async (id) => {
+        const res = await fetch(`/db/${id}`);
+        return res.json() as Promise<PaletteSource>;
+      }),
+    )).flat();
+
+    setDb(selected);
+  };
 
   return (
     <main className="container mx-auto">
-      <h1 className="font-sans text-lg">img2mcstructure</h1>
+      <h1 className="font-sans text-2xl">img2mcstructure</h1>
       <div className="grid gap-6">
         <DropImage
           onChange={(file) => {
@@ -139,37 +179,47 @@ function App() {
               Title
             </label>
             <input
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-10 w-full rounded-md border border-input px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               id="title"
               placeholder="Enter image title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
           </div>
-        </div>
-        <div className="grid gap-4">
-            <fieldset className="flex flex-col space-y-1.5">
+
+          <fieldset className="flex flex-col space-y-1.5">
             <label
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
               htmlFor="axis-y"
             >
               Y Axis
-              <input type="radio" name="axis" id="axis-y" value="y" 
-              checked={axis === "y"}
-              onChange={(e) => setAxis(e.target.value === "y" ? "y" : "x")}
-               />
+              <input
+                type="radio"
+                name="axis"
+                id="axis-y"
+                value="y"
+                checked={axis === "y"}
+                onChange={(e) => setAxis(e.target.value === "y" ? "y" : "x")}
+              />
             </label>
             <label
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
               htmlFor="axis-x"
             >
               X Axis
-              <input type="radio" name="axis" id="axis-x" value="x"
-              checked={axis === "x"}
-              onChange={(e) => setAxis(e.target.value === "x" ? "x" : "y")}
+              <input
+                type="radio"
+                name="axis"
+                id="axis-x"
+                value="x"
+                checked={axis === "x"}
+                onChange={(e) => setAxis(e.target.value === "x" ? "x" : "y")}
               />
             </label>
           </fieldset>
+        </div>
+        <div className="grid gap-4">
+          <SelectPalette onChange={(value) => handlePaletteChange(value)} />
         </div>
         <button
           className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full"

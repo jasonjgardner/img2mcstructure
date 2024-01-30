@@ -1,4 +1,4 @@
-import type { IBlock, RGB } from "./types.ts";
+import type { IBlock, RGB, RGBA } from "./types.ts";
 import { BLOCK_VERSION } from "./_constants.ts";
 
 /**
@@ -10,29 +10,30 @@ import { BLOCK_VERSION } from "./_constants.ts";
 export default function createPalette(
   db: Record<
     string,
-    string | Pick<IBlock, "hexColor" | "states" | "version" | "id">
+    string | Pick<IBlock, "hexColor" | "states" | "version" | "id" | "color">
   >,
 ) {
   const blockPalette: IBlock[] = [];
 
   for (const idx in db) {
     const block = db[idx];
-    const [id, hexColor, states, version] = typeof block === "string"
-      ? [idx, block, {}, BLOCK_VERSION]
+    const [id, color, hexColor, states, version] = typeof block === "string"
+      ? [idx, null, block, {}, BLOCK_VERSION]
       : [
         block.id,
+        block.color ?? null,
         block.hexColor,
         block.states ?? {},
         block.version ?? BLOCK_VERSION,
       ];
-    const color = hexColor.match(/[^#]{1,2}/g)!.map((x) =>
-      parseInt(x, 16)
-    ) as RGB;
 
     blockPalette.push({
       id,
       hexColor,
-      color,
+      color: color ??
+        (hexColor
+          ? hexColor.match(/[^#]{1,2}/g)!.map((x) => parseInt(x, 16)) as RGB
+          : [0, 0, 0, 0] as RGBA),
       states,
       version,
     });
