@@ -10,16 +10,21 @@ import { BLOCK_VERSION } from "./_constants.ts";
 export default function createPalette(
   db: Record<
     string,
-    string | Pick<IBlock, "hexColor" | "states" | "version">
+    string | Pick<IBlock, "hexColor" | "states" | "version" | "id">
   >,
 ) {
   const blockPalette: IBlock[] = [];
 
-  for (const id in db) {
-    const block = db[id];
-    const [hexColor, states, version] = typeof block === "string"
-      ? [block, {}, BLOCK_VERSION]
-      : [block.hexColor, block.states ?? {}, block.version ?? BLOCK_VERSION];
+  for (const idx in db) {
+    const block = db[idx];
+    const [id, hexColor, states, version] = typeof block === "string"
+      ? [idx, block, {}, BLOCK_VERSION]
+      : [
+        block.id,
+        block.hexColor,
+        block.states ?? {},
+        block.version ?? BLOCK_VERSION,
+      ];
     const color = hexColor.match(/[^#]{1,2}/g)!.map((x) =>
       parseInt(x, 16)
     ) as RGB;

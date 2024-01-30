@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run --allow-read --allow-write --allow-net --allow-env
-import type { Axis, IBlock } from "./types.ts";
+import type { Axis, PaletteSource } from "./types.ts";
 import { basename, extname, join } from "./deps.ts";
 import img2mcstructure, { createPalette } from "./mod.ts";
 
@@ -17,7 +17,7 @@ export async function parseDbInput(db: string) {
 
 export default async function main(
   src: string,
-  db: Record<string, string | Pick<IBlock, "hexColor" | "states" | "version">>,
+  db: PaletteSource,
   axis: Axis = "x",
 ) {
   const palette = createPalette(db);
