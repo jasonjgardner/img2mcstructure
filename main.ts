@@ -27,7 +27,7 @@ export default async function main(
 if (import.meta.main) {
   const [src, axis, db] = Deno.args;
   const colorDb: Record<string, string> = (await import(
-    db ?? toFileUrl(join(Deno.cwd(), "db", "minecraft.json")),
+    db ?? toFileUrl(join("./db/minecraft.json")),
     {
       with: { type: "json" },
     }
