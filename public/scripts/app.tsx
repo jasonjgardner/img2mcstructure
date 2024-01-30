@@ -111,7 +111,7 @@ function App() {
     a.download = `${title.toLowerCase().replace(/\s+/g, "_")}.mcstructure`;
     document.body.appendChild(a);
     a.click();
-  }, [title]);
+  }, [title, axis]);
 
   return (
     <main className="container mx-auto">
@@ -156,7 +156,7 @@ function App() {
               Y Axis
               <input type="radio" name="axis" id="axis-y" value="y" 
               checked={axis === "y"}
-              onChange={(e) => setAxis(e.target.value as "x" | "y")}
+              onChange={(e) => setAxis(e.target.value === "y" ? "y" : "x")}
                />
             </label>
             <label
@@ -166,7 +166,7 @@ function App() {
               X Axis
               <input type="radio" name="axis" id="axis-x" value="x"
               checked={axis === "x"}
-              onChange={(e) => setAxis(e.target.value as "x" | "y")}
+              onChange={(e) => setAxis(e.target.value === "x" ? "x" : "y")}
               />
             </label>
           </fieldset>
