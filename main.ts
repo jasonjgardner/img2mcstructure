@@ -63,6 +63,7 @@ if (import.meta.main) {
           headers: {
             "Content-Disposition": 'attachment; filename="img.mcstructure"',
             "Content-Type": "application/octet-stream",
+            "Access-Control-Allow-Origin": "*",
           },
         });
       } catch (err) {
