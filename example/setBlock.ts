@@ -3,8 +3,9 @@ import decode from "../_decode.ts";
 import { getNearestColor } from "../mod.ts";
 import blocks from "../db/rgb.ts";
 
-export async function createFunction(
+export default async function createFunction(
   imgSrc: string,
+  offset: [number, number, number] = [0, 0, 0],
 ) {
   const frames = await decode(imgSrc);
 
@@ -14,12 +15,14 @@ export async function createFunction(
 
   for (let z = 0; z < len; z++) {
     const img = frames[z];
-    for (const [x, z, c] of img.iterateWithColors()) {
+    for (const [x, y, c] of img.iterateWithColors()) {
       const [r, g, b, a] = imagescript.Image.colorToRGBA(c);
 
       const nearest = getNearestColor([r, g, b], blocks);
       lines.push(
-        `setblock ~${x} ~ ~${z} ${nearest.id} [${
+        `setblock ~${x + offset[0]} ~${y + offset[1]} ~${
+          offset[2]
+        } ${nearest.id} [${
           Object.entries(nearest.states).map(([k, v]) => `"${k}" = ${v}`).join(
             " ",
           )
