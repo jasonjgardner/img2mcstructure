@@ -1,5 +1,5 @@
 import type { Axis, IBlock, IMcStructure, RGB } from "./types.ts";
-import { hex2rgb, imagescript, nbt } from "./deps.ts";
+import { imagescript, nbt } from "./deps.ts";
 import {
   BLOCK_VERSION,
   DEFAULT_BLOCK,
@@ -34,7 +34,7 @@ export function getNearestColor(
   // https://gist.github.com/Ademking/560d541e87043bfff0eb8470d3ef4894?permalink_comment_id=3720151#gistcomment-3720151
   return palette.reduce(
     (prev: [number, IBlock], curr: IBlock): [number, IBlock] => {
-      const distance = colorDistance(color, hex2rgb(curr.hexColor));
+      const distance = colorDistance(color, curr.color.slice(0, 3) as RGB);
 
       return (distance < prev[0]) ? [distance, curr] : prev;
     },
@@ -76,6 +76,26 @@ function convertBlock(
   };
 }
 
+function compareStates(
+  a: Record<string, unknown>,
+  b: Record<string, unknown>,
+) {
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+
+  if (aKeys.length !== bKeys.length) {
+    return false;
+  }
+
+  for (const key of aKeys) {
+    if (a[key] !== b[key]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 /**
  * Convert GIF / Image to .mcstructure file format
  * @param frames - The GIF or image source as an array
@@ -112,7 +132,8 @@ export function constructDecoded(
 
   const [width, height, depth] = size;
 
-  const memo = new Map<number, [string, number]>();
+  // TODO: Implement memoization
+  // const memo = new Map<number, [Partial<IBlock>, number]>();
 
   /**
    * Block indices primary layer
@@ -127,22 +148,20 @@ export function constructDecoded(
     img.rotate(90);
 
     for (const [x, y, c] of img.iterateWithColors()) {
-      const [memoizedNearest, memoizedIdx] = memo.get(c) ?? [null, null];
-      const nearest = memoizedNearest ?? convertBlock(c, palette).id;
+      const nearest = convertBlock(c, palette);
 
-      let blockIdx = memoizedIdx ??
-        blockPalette.findIndex(({ name }) => name === nearest);
+      let blockIdx = blockPalette.findIndex(({ name, states }) =>
+        name === nearest.id && compareStates(nearest.states, states)
+      );
 
       if (blockIdx === -1) {
         blockIdx = blockPalette.push(
           {
             version: BLOCK_VERSION,
-            name: nearest,
-            states: {},
+            name: nearest.id ?? DEFAULT_BLOCK,
+            states: nearest.states ?? {},
           },
         ) - 1;
-
-        memo.set(c, [nearest, blockIdx]);
       }
 
       const key = (z * img.width * img.height) + (y * img.width) +
