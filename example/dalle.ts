@@ -1,6 +1,6 @@
 import type { Axis } from "../types.ts";
 import { nanoid } from "../deps.ts";
-import create from "../main.ts";
+import img2mcstructure, { createPalette } from "../mod.ts";
 import OpenAI from "npm:openai";
 import { load } from "https://deno.land/std@0.212.0/dotenv/mod.ts";
 import db from "../db/rainbow.json" with { type: "json" };
@@ -27,9 +27,9 @@ export default async function main(
 
   const imageUrl: string = response.data[0].url ?? "";
 
-  return await create(
+  return await img2mcstructure(
     imageUrl,
-    db,
+    createPalette(db),
     axis,
   );
 }

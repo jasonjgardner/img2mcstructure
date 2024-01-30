@@ -1,5 +1,7 @@
 import type { Axis, IBlock, IMcStructure, RGB } from "./types.ts";
 import { imagescript, nbt } from "./deps.ts";
+import decode from "./_decode.ts";
+import createPalette from "./_palette.ts";
 import {
   BLOCK_VERSION,
   DEFAULT_BLOCK,
@@ -7,6 +9,8 @@ import {
   MAX_DEPTH,
 } from "./_constants.ts";
 import rotateStructure from "./_rotate.ts";
+
+export { createPalette, decode, rotateStructure };
 
 /**
  * Calculate the distance between two RGB colors.
@@ -215,4 +219,14 @@ export async function createStructure(
     compression: null,
     bedrockLevel: null,
   });
+}
+
+export default async function img2mcstructure(
+  imgSrc: string,
+  db: IBlock[] = [],
+  axis: Axis = "x",
+) {
+  const img = await decode(imgSrc);
+
+  return await createStructure(img, db, axis);
 }
