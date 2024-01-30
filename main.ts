@@ -2,7 +2,8 @@ import type { Axis } from "./types.ts";
 import { createStructure } from "./mod.ts";
 import decode from "./_decode.ts";
 import createPalette from "./_palette.ts";
-import { basename, extname, join, toFileUrl } from "./deps.ts";
+import { basename, extname, join } from "./deps.ts";
+import defaultDb from "./db/minecraft.json" with { type: "json" };
 
 export default async function main(
   imgSrc: string,
@@ -26,13 +27,14 @@ export default async function main(
 
 if (import.meta.main) {
   const [src, axis, db] = Deno.args;
-  const colorDb: Record<string, string> = (await import(
-    db ??
-      import.meta.resolve("./db/minecraft.json"),
-    {
-      with: { type: "json" },
-    }
-  )).default;
+  const colorDb: Record<string, string> = db
+    ? (await import(
+      db,
+      {
+        with: { type: "json" },
+      }
+    )).default
+    : defaultDb;
 
   if (Deno.args.length > 0) {
     const fileName = basename(src, extname(src));
