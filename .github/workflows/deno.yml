@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,7 +24,7 @@ jobs:
           deno-version: v1.x
       - name: Setup
         run: |
-          deno run -A https://deno.land/x/packup/install.ts
+          deno install -qAf https://deno.land/x/packup@v0.2.4/cli.ts
           packup -v
           packup build ./public/index.html
       - name: Deploy to Deno Deploy
