@@ -8,6 +8,8 @@ import React, {
 } from "https://esm.sh/react@18.2.0";
 import ReactDOM from "https://esm.sh/react-dom@18.2.0";
 
+const SVC_URL = "/v1/structure";
+
 function DropImage({ onChange }: { onChange: (file: File) => void }) {
   const [dragging, setDragging] = useState(false);
 
@@ -89,7 +91,7 @@ function App() {
   }, [image]);
 
   const handleSubmit = useCallback(async () => {
-    const res = await fetch("https://mcstructure.deno.dev/v1/strcture", {
+    const res = await fetch(SVC_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
