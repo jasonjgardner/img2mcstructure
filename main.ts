@@ -28,9 +28,7 @@ if (import.meta.main) {
   const [src, axis, db] = Deno.args;
   const colorDb: Record<string, string> = (await import(
     db ??
-      toFileUrl(
-        join(import.meta.dirname ?? Deno.cwd(), "db", "minecraft.json"),
-      ),
+      import.meta.resolve("./db/minecraft.json"),
     {
       with: { type: "json" },
     }
