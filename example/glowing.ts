@@ -3,17 +3,19 @@ import { nanoid } from "../deps.ts";
 import main from "../main.ts";
 import db from "../db/rainbow.json" with { type: "json" };
 
-const structureId = nanoid(6);
-
-const palette = Object.keys(db).filter((id) =>
-  id.includes("lit") || id.includes("lamp")
+const palette = Object.fromEntries(
+  Object.keys(db).filter((id) => id.includes("lit") || id.includes("lamp")).map(
+    (id) => [id, db[id as keyof typeof db]],
+  ),
 );
+
+const structureId = nanoid(6);
 
 await Deno.writeFile(
   `./glowing_${structureId}.mcstructure`,
   await main(
     Deno.args[0],
-    Object.fromEntries(palette.map((id) => [id, db[id as keyof typeof db]])),
+    palette,
     (Deno.args[1] ?? "x") as Axis,
   ),
 );
