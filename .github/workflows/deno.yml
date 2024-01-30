@@ -1,0 +1,35 @@
+name: Deno Deploy
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup repo
+        uses: actions/checkout@v3
+
+      - name: Setup Deno
+        # uses: denoland/setup-deno@v1
+        uses: denoland/setup-deno@61fe2df320078202e33d7d5ad347e7dcfa0e8f31  # v1.1.2
+        with:
+          deno-version: v1.x
+      - name: Setup
+        run: |
+          deno install -qAf https://deno.land/x/packup@v0.2.4/cli.ts
+          packup -v
+          packup build ./public/index.html
+      - name: Deploy to Deno Deploy
+        uses: denoland/deployctl@1.10.3
+        with:
+          project: mcstructure
+          entrypoint: main.ts
