@@ -71,6 +71,7 @@ function DropImage({ onChange }: { onChange: (file: File) => void }) {
 
 function App() {
   const [size, setSize] = useState(256);
+  const [axis, setAxis] = useState<"x" | "y">("y");
   const [image, setImage] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -98,7 +99,7 @@ function App() {
       },
       body: JSON.stringify({
         img: canvasRef.current?.toDataURL("image/png"),
-        axis: "y",
+        axis,
       }),
     });
 
@@ -108,6 +109,8 @@ function App() {
     const a = document.createElement("a");
     a.href = url;
     a.download = `${title.toLowerCase().replace(/\s+/g, "_")}.mcstructure`;
+    document.body.appendChild(a);
+    a.click();
   }, [title]);
 
   return (
@@ -143,6 +146,30 @@ function App() {
               onChange={(e) => setTitle(e.target.value)}
             />
           </div>
+        </div>
+        <div className="grid gap-4">
+            <fieldset className="flex flex-col space-y-1.5">
+            <label
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              htmlFor="axis-y"
+            >
+              Y Axis
+              <input type="radio" name="axis" id="axis-y" value="y" 
+              checked={axis === "y"}
+              onChange={(e) => setAxis(e.target.value as "x" | "y")}
+               />
+            </label>
+            <label
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              htmlFor="axis-x"
+            >
+              X Axis
+              <input type="radio" name="axis" id="axis-x" value="x"
+              checked={axis === "x"}
+              onChange={(e) => setAxis(e.target.value as "x" | "y")}
+              />
+            </label>
+          </fieldset>
         </div>
         <button
           className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full"

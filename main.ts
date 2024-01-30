@@ -4,6 +4,7 @@ import decode from "./_decode.ts";
 import createPalette from "./_palette.ts";
 import { basename, extname, join } from "./deps.ts";
 import defaultDb from "./db/minecraft.json" with { type: "json" };
+import { serveDir } from "https://deno.land/std@0.213.0/http/file_server.ts";
 
 export default async function main(
   imgSrc: string,
@@ -74,18 +75,10 @@ if (import.meta.main) {
       }
     }
 
-    if (req.method === "GET" && pathname === "/") {
-      return new Response(
-        JSON.stringify({
-          name: "img2mcstructure",
-          version: "v1.0.0",
-        }),
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        },
-      );
+    if (req.method === "GET") {
+      return serveDir(req, {
+        fsRoot: "dist",
+      });
     }
 
     return new Response("Error", { status: 400 });

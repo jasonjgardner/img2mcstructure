@@ -2,3 +2,4 @@ cache/
 *.mcstructure
 .env
 !.env.example
+dist/*
