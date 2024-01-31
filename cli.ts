@@ -2,6 +2,7 @@
 import type { Axis, PaletteSource } from "./types.ts";
 import { basename, extname, join } from "./deps.ts";
 import img2mcstructure, { createPalette } from "./mod.ts";
+import { parseArgs } from "https://deno.land/std@0.213.0/cli/parse_args.ts";
 
 export async function parseDbInput(db: string) {
   if (
@@ -19,16 +20,17 @@ export default async function main(
   src: string,
   db: PaletteSource,
   axis: Axis = "x",
+  dest?: string,
 ) {
   const palette = createPalette(db);
 
-  const dest = join(
-    Deno.cwd(),
-    `${basename(src, extname(src))}_${Date.now()}.mcstructure`,
+  const structureDest = join(
+    dest ?? Deno.cwd(),
+    `${basename(src, extname(src))}_${axis}_${Date.now()}.mcstructure`,
   );
 
   await Deno.writeFile(
-    dest,
+    structureDest,
     await img2mcstructure(
       src,
       palette,
@@ -36,19 +38,37 @@ export default async function main(
     ),
   );
 
-  console.log(`Created ${dest}`);
-  Deno.exit(0);
+  console.log(`Created ${structureDest}`);
 }
 
 if (import.meta.main) {
-  if (Deno.args.length < 2) {
-    console.error("Usage: img2mcstructure <image> <db> [axis=x]");
-    Deno.exit(1);
+  const { axis, img, db, watch, dest } = parseArgs(Deno.args);
+
+  const watcher = watch ? Deno.watchFs(img) : null;
+
+  if (watcher) {
+    const extensions = [".png", ".jpg", ".jpeg", ".gif"];
+    for await (const event of watcher) {
+      if (
+        event.kind === "create" && extensions.includes(extname(event.paths[0])!)
+      ) {
+        await main(
+          event.paths[0],
+          await parseDbInput(db),
+          (axis ?? "x") as Axis,
+        );
+      }
+    }
+
+    Deno.exit(0);
   }
 
   await main(
-    Deno.args[0],
-    await parseDbInput(Deno.args[1]),
-    (Deno.args[2] ?? "x") as Axis,
+    img,
+    await parseDbInput(db),
+    (axis ?? "x") as Axis,
+    dest,
   );
+
+  Deno.exit(0);
 }
