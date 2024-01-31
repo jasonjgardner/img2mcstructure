@@ -1,4 +1,4 @@
-import type { IBlock, RGB, RGBA } from "./types.ts";
+import type { IBlock, PaletteSource, RGB, RGBA } from "./types.ts";
 import { BLOCK_VERSION } from "./_constants.ts";
 
 /**
@@ -8,10 +8,7 @@ import { BLOCK_VERSION } from "./_constants.ts";
  * @returns Array of blocks.
  */
 export default function createPalette(
-  db: Record<
-    string,
-    string | Pick<IBlock, "hexColor" | "states" | "version" | "id" | "color">
-  >,
+  db: PaletteSource,
 ) {
   const blockPalette: IBlock[] = [];
 

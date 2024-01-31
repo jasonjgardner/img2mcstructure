@@ -4,7 +4,7 @@ export type RGBA = [number, number, number, number];
 
 export type PaletteSource = Record<
   string,
-  string | Pick<IBlock, "hexColor" | "states" | "version">
+  string | IBlock
 >;
 
 export interface IBlock {
