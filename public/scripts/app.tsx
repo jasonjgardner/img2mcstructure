@@ -7,6 +7,7 @@ import React, {
   useState,
 } from "https://esm.sh/react@18.2.0";
 import ReactDOM from "https://esm.sh/react-dom@18.2.0";
+import { nanoid } from "https://cdn.jsdelivr.net/npm/nanoid/nanoid.js";
 import type { PaletteSource } from "../../types.ts";
 
 const SVC_URL = "/v1/structure";
@@ -14,6 +15,7 @@ const MAX_HEIGHT = 512;
 const MAX_WIDTH = 512;
 
 function DropImage({ onChange }: { onChange: (file: File) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
@@ -43,31 +45,35 @@ function DropImage({ onChange }: { onChange: (file: File) => void }) {
   }, []);
 
   const className =
-    "border-dashed border-2 border-gray-500 dark:border-gray-400 rounded-md flex flex-1 items-center justify-center cursor-pointer" +
+    "border-dashed border-2 border-gray-500 dark:border-gray-400 rounded-md flex flex-grow items-center justify-center cursor-pointer h-full min-h-40" +
     (dragging ? " border-blue-500" : "");
 
   return (
-    <div {...{ className }}>
-      <p className="text-center text-gray-500 dark:text-gray-400">
-        Drag and drop your image here or{" "}
-        <label
-          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-blue-500 underline cursor-pointer"
-          htmlFor="image-upload"
-        >
-          browse
-        </label>
-        <input
-          className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 hidden"
-          id="image-upload"
-          type="file"
-          accept="image/*"
-          onChange={(e) => {
-            if (e.target.files) {
-              onChange(e.target.files[0]);
-            }
-          }}
-        />
-      </p>
+    <div
+      {...{ className }}
+      onClick={() => {
+        inputRef.current?.click();
+      }}
+    >
+      Drag and drop your image here or{" "}
+      <label
+        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-blue-500 underline cursor-pointer"
+        htmlFor="image-upload"
+      >
+        browse
+      </label>
+      <input
+        className="flex-grow h-full w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 hidden"
+        id="image-upload"
+        type="file"
+        accept="image/*"
+        onChange={(e) => {
+          if (e.target.files) {
+            onChange(e.target.files[0]);
+          }
+        }}
+        ref={inputRef}
+      />
     </div>
   );
 }
@@ -92,7 +98,7 @@ function SelectPalette({ onChange }: { onChange: (value: string[]) => void }) {
         Palette
       </label>
       <select
-        className="h-10 w-full rounded-md border border-input px-3 py-2 text-sm"
+        className="w-full rounded-md border border-input px-3 py-2 text-sm"
         multiple
         onChange={(e) => {
           onChange(Array.from(e.target.selectedOptions).map((o) => o.value));
@@ -132,11 +138,12 @@ function SelectSize(
 }
 
 function App() {
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [userSetSize, setUserSetSize] = useState<boolean>(false);
   const [size, setSize] = useState(64);
   const [axis, setAxis] = useState<"x" | "y">("y");
   const [image, setImage] = useState<File | null>(null);
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState<string>(nanoid(8));
   const [db, setDb] = useState<PaletteSource[]>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -185,6 +192,7 @@ function App() {
   }, [image, size, userSetSize]);
 
   const handleSubmit = useCallback(async () => {
+    setIsProcessing(true);
     const res = await fetch(SVC_URL, {
       method: "POST",
       headers: {
@@ -205,8 +213,12 @@ function App() {
     a.download = `${title.toLowerCase().replace(/\s+/g, "_")}.mcstructure`;
     document.body.appendChild(a);
     a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+    setIsProcessing(false);
   }, [title, axis, db]);
 
+  // TODO: Cache responses
   const handlePaletteChange = async (palettes: string[]) => {
     setDb([]);
     const selected = (await Promise.all(
@@ -221,8 +233,8 @@ function App() {
 
   return (
     <main className="container mx-auto">
-      <h1 className="font-sans text-2xl">img2mcstructure</h1>
-      <div className="flex flex-col">
+      <h1 className="font-sans text-2xl font-semibold">img2mcstructure</h1>
+      <div className="flex flex-col h-full space-y-2 mt-4">
         <DropImage
           onChange={(file) => {
             setImage(file);
@@ -260,12 +272,12 @@ function App() {
             />
           </div>
 
-          <fieldset className="flex flex-col space-y-1.5">
+          <fieldset className="flex flex-row py-1 space-x-1.5">
+            <legend className="text-lg font-sans font-medium">Output</legend>
             <label
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 space-x-2 flex justify-start"
               htmlFor="axis-y"
             >
-              Y Axis
               <input
                 type="radio"
                 name="axis"
@@ -273,13 +285,13 @@ function App() {
                 value="y"
                 checked={axis === "y"}
                 onChange={(e) => setAxis(e.target.value === "y" ? "y" : "x")}
-              />
+              />{" "}
+              Ceiling / Floor
             </label>
             <label
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 space-x-2 flex justify-start"
               htmlFor="axis-x"
             >
-              X Axis
               <input
                 type="radio"
                 name="axis"
@@ -288,6 +300,7 @@ function App() {
                 checked={axis === "x"}
                 onChange={(e) => setAxis(e.target.value === "x" ? "x" : "y")}
               />
+              Wall
             </label>
           </fieldset>
         </div>
@@ -297,7 +310,7 @@ function App() {
         <button
           className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full"
           onClick={handleSubmit}
-          disabled={image === null || title === ""}
+          disabled={isProcessing || image === null || title === ""}
         >
           Submit
         </button>
