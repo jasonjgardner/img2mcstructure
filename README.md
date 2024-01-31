@@ -1,19 +1,12 @@
 # img2mcstructure
 
-> For use with
+> ![RGB example](https://github.com/jasonjgardner/img2mcstructure/assets/1903667/3f98a433-9f41-4009-b840-d8341eb2c2f7)
+> [Made with RGB add-on](https://cdn.discordapp.com/attachments/830521962383802368/1201692650122792990/RGB.mcaddon)
+
+> ![Minecraft mural made with RAINBOW III!!!](https://github.com/jasonjgardner/img2mcstructure/assets/1903667/dcc165d9-4cab-4858-9106-330426a4a0e7)
 > [_RAINBOW III!!!_ add-on](https://cdn.discordapp.com/attachments/830521962383802368/1200453046304518164/RAINBOW_III-beta.mcaddon).
 
-![Minecraft mural made with RAINBOW III!!!](https://github.com/jasonjgardner/img2mcstructure/assets/1903667/dcc165d9-4cab-4858-9106-330426a4a0e7)
-
-Send a request with the image URL like so:
-
-```powershell
-$settings = @{
-    img="https://placekitten.com/64/64";
-    axis="y"
-}
-iwr -Uri https://mcstructure.deno.dev/v1/structure -Method POST -ContentType "application/json" -Body ($settings | ConvertTo-Json) -OutFile "demo.mcstructure"
-```
+Try it at https://mcstructure.deno.dev/
 
 Images will be clamped to 64px. To create a larger structure, download Deno and
 run:
