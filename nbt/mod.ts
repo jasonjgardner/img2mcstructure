@@ -65,6 +65,7 @@ function findBlock(
 export function constructDecoded(
   frames: imagescript.GIF | Array<imagescript.Image | imagescript.Frame>,
   palette: IBlock[],
+  axis: Axis = "x",
 ) {
   /**
    * Structure size (X, Y, Z)
@@ -91,9 +92,6 @@ export function constructDecoded(
   for (let z = 0; z < depth; z++) {
     const img = frames[z];
 
-    // FIXME: Image must be rotated 90 degrees for some reason
-    img.rotate(90);
-
     for (const [x, y, c] of img.iterateWithColors()) {
       let [nearest, blockIdx] = memo.get(c) ??
         findBlock(c, palette, blockPalette);
@@ -110,14 +108,22 @@ export function constructDecoded(
       }
 
       blocks.push({
-        pos: [y - 1, z, x - 1],
+        pos: axis === "x"
+          ? [y - 1, z, x - 1]
+          : axis === "z"
+          ? [x - 1, z, y - 1]
+          : [x - 1, y - 1, z],
         state: blockIdx,
       });
     }
   }
 
   const tag = {
-    size: [height, depth, width],
+    size: axis === "y"
+      ? [width, height, depth]
+      : axis === "z"
+      ? [width, depth, height]
+      : [height, depth, width],
     blocks,
     palette: blockPalette,
     entities: [],
@@ -133,7 +139,7 @@ export async function createNbtStructure(
   axis: Axis = "x",
   name = "img2nbt",
 ) {
-  const decoded = constructDecoded(frames, palette);
+  const decoded = constructDecoded(frames, palette, axis);
   const structure = JSON.stringify(decoded, null, 2);
 
   return await nbt.write(nbt.parse(structure), {
