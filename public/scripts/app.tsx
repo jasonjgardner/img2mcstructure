@@ -8,7 +8,10 @@ import React, {
 } from "https://esm.sh/react@18.2.0";
 import ReactDOM from "https://esm.sh/react-dom@18.2.0";
 import type { PaletteSource } from "../../types.ts";
+
 const SVC_URL = "/v1/structure";
+const MAX_HEIGHT = 512;
+const MAX_WIDTH = 512;
 
 function DropImage({ onChange }: { onChange: (file: File) => void }) {
   const [dragging, setDragging] = useState(false);
@@ -40,7 +43,7 @@ function DropImage({ onChange }: { onChange: (file: File) => void }) {
   }, []);
 
   const className =
-    "border-dashed border-2 border-gray-500 dark:border-gray-400 rounded-md h-60 flex items-center justify-center cursor-pointer" +
+    "border-dashed border-2 border-gray-500 dark:border-gray-400 rounded-md flex flex-1 items-center justify-center cursor-pointer" +
     (dragging ? " border-blue-500" : "");
 
   return (
@@ -81,22 +84,56 @@ function SelectPalette({ onChange }: { onChange: (value: string[]) => void }) {
     value: "rgb",
   }];
   return (
-    <select
-      className="h-10 w-full rounded-md border border-input px-3 py-2 text-sm"
-      multiple
-      onChange={(e) => {
-        onChange(Array.from(e.target.selectedOptions).map((o) => o.value));
-      }}
-    >
-      {options.map((option) => (
-        <option value={option.value}>{option.name}</option>
-      ))}
-    </select>
+    <div className="flex flex-col space-y-1.5">
+      <label
+        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        htmlFor="palette"
+      >
+        Palette
+      </label>
+      <select
+        className="h-10 w-full rounded-md border border-input px-3 py-2 text-sm"
+        multiple
+        onChange={(e) => {
+          onChange(Array.from(e.target.selectedOptions).map((o) => o.value));
+        }}
+      >
+        {options.map((option) => (
+          <option value={option.value}>{option.name}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function SelectSize(
+  { onChange, value }: { onChange: (value: number) => void; value: number },
+) {
+  const options = [16, 32, 64, 128, 256, 512];
+  return (
+    <div className="flex flex-col space-y-1.5">
+      <label
+        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        htmlFor="size"
+      >
+        Size
+      </label>
+      <select
+        className="h-10 w-full rounded-md border border-input px-3 py-2 text-sm"
+        onChange={(e) => {
+          onChange(Number(e.target.value));
+        }}
+        value={value}
+      >
+        {options.map((option) => <option value={option}>{option}</option>)}
+      </select>
+    </div>
   );
 }
 
 function App() {
-  const [size, setSize] = useState(256);
+  const [userSetSize, setUserSetSize] = useState<boolean>(false);
+  const [size, setSize] = useState(64);
   const [axis, setAxis] = useState<"x" | "y">("y");
   const [image, setImage] = useState<File | null>(null);
   const [title, setTitle] = useState("");
@@ -110,13 +147,42 @@ function App() {
       img.onload = () => {
         if (canvasRef.current) {
           const ctx = canvasRef.current.getContext("2d");
+
+          const w = userSetSize ? size : MAX_WIDTH;
+          const h = userSetSize ? size : MAX_HEIGHT;
+          let newWidth = img.width;
+          let newHeight = img.height;
+
+          if (newWidth > w) {
+            newHeight *= w / newWidth;
+            newWidth = w;
+          }
+
+          if (newHeight > h) {
+            newWidth *= h / newHeight;
+            newHeight = h;
+          }
+
+          if (!userSetSize) {
+            setSize(Math.max(newWidth, newHeight));
+          }
+
+          canvasRef.current.width = newWidth;
+          canvasRef.current.height = newHeight;
+
           if (ctx) {
-            ctx.drawImage(img, 0, 0, size, size);
+            ctx.clearRect(
+              0,
+              0,
+              canvasRef.current.width,
+              canvasRef.current.height,
+            );
+            ctx.drawImage(img, 0, 0, newWidth, newHeight);
           }
         }
       };
     }
-  }, [image]);
+  }, [image, size, userSetSize]);
 
   const handleSubmit = useCallback(async () => {
     const res = await fetch(SVC_URL, {
@@ -156,13 +222,13 @@ function App() {
   return (
     <main className="container mx-auto">
       <h1 className="font-sans text-2xl">img2mcstructure</h1>
-      <div className="grid gap-6">
+      <div className="flex flex-col">
         <DropImage
           onChange={(file) => {
             setImage(file);
           }}
         />
-        <div className="border border-gray-300 dark:border-gray-700 rounded-md h-96">
+        <div className="border border-gray-300 dark:border-gray-700 rounded-md bg-gray-50 flex-shrink">
           {image === null && (
             <p className="text-center text-gray-500 dark:text-gray-400 py-44">
               Image will appear here for editing
@@ -170,6 +236,13 @@ function App() {
           )}
           <canvas ref={canvasRef} width={size} height={size} />
         </div>
+        <SelectSize
+          onChange={(value) => {
+            setSize(value);
+            setUserSetSize(true);
+          }}
+          value={size}
+        />
         <div className="grid gap-4">
           <div className="flex flex-col space-y-1.5">
             <label

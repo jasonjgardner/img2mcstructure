@@ -12,6 +12,10 @@ import rotateStructure from "./_rotate.ts";
 
 export { createPalette, decode, rotateStructure };
 
+type StructurePalette = Array<
+  Pick<IBlock, "states" | "version"> & { name: string }
+>;
+
 /**
  * Calculate the distance between two RGB colors.
  * @param color1 RGB color to compare
@@ -55,13 +59,14 @@ export function getNearestColor(
 function convertBlock(
   c: number,
   palette: IBlock[],
-): Pick<IBlock, "id" | "states"> {
+): Pick<IBlock, "id" | "states" | "version"> {
   const [r, g, b, a] = imagescript.Image.colorToRGBA(c);
 
   if (a < 128) {
     return {
       id: MASK_BLOCK,
       states: {},
+      version: BLOCK_VERSION,
     };
   }
 
@@ -71,12 +76,14 @@ function convertBlock(
     return {
       id: DEFAULT_BLOCK,
       states: {},
+      version: BLOCK_VERSION,
     };
   }
 
   return {
     id: nearestBlock.id,
     states: nearestBlock.states ?? {},
+    version: nearestBlock.version ?? BLOCK_VERSION,
   };
 }
 
@@ -84,20 +91,22 @@ function compareStates(
   a: Record<string, unknown>,
   b: Record<string, unknown>,
 ) {
-  const aKeys = Object.keys(a);
-  const bKeys = Object.keys(b);
+  return (Object.keys(a).length === Object.keys(b).length) &&
+    Object.entries(a).sort().toString() ===
+      Object.entries(b).sort().toString();
+}
 
-  if (aKeys.length !== bKeys.length) {
-    return false;
-  }
+function findBlock(
+  c: number,
+  palette: IBlock[],
+  blockPalette: StructurePalette,
+): [Pick<IBlock, "id" | "states" | "version">, number] {
+  const nearest = convertBlock(c, palette);
+  const blockIdx = blockPalette.findIndex(({ name, states }) =>
+    name === nearest.id && compareStates(nearest.states, states)
+  );
 
-  for (const key of aKeys) {
-    if (a[key] !== b[key]) {
-      return false;
-    }
-  }
-
-  return true;
+  return [nearest, blockIdx];
 }
 
 /**
@@ -112,11 +121,7 @@ export function constructDecoded(
   /**
    * Block palette
    */
-  const blockPalette: Array<{
-    version: number;
-    name: string;
-    states: Record<string, unknown>;
-  }> = [];
+  const blockPalette: StructurePalette = [];
 
   /**
    * Block position data. First element is the position index. Second element is the block entity data.
@@ -136,8 +141,10 @@ export function constructDecoded(
 
   const [width, height, depth] = size;
 
-  // TODO: Implement memoization
-  // const memo = new Map<number, [Partial<IBlock>, number]>();
+  const memo = new Map<
+    number,
+    [Pick<IBlock, "states" | "version" | "id">, number]
+  >();
 
   /**
    * Block indices primary layer
@@ -152,20 +159,19 @@ export function constructDecoded(
     img.rotate(90);
 
     for (const [x, y, c] of img.iterateWithColors()) {
-      const nearest = convertBlock(c, palette);
-
-      let blockIdx = blockPalette.findIndex(({ name, states }) =>
-        name === nearest.id && compareStates(nearest.states, states)
-      );
+      let [nearest, blockIdx] = memo.get(c) ??
+        findBlock(c, palette, blockPalette);
 
       if (blockIdx === -1) {
         blockIdx = blockPalette.push(
           {
-            version: BLOCK_VERSION,
+            version: nearest.version ?? BLOCK_VERSION,
             name: nearest.id ?? DEFAULT_BLOCK,
             states: nearest.states ?? {},
           },
         ) - 1;
+
+        memo.set(c, [nearest, blockIdx]);
       }
 
       const key = (z * img.width * img.height) + (y * img.width) +

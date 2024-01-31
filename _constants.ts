@@ -19,12 +19,12 @@ export const MASK_BLOCK = "minecraft:structure_void";
  */
 export const MAX_HEIGHT = Deno.env.get("DENO_DEPLOYMENT_ID") !== undefined
   ? 64
-  : 256;
+  : Number(Deno.env.get("MAX_SIZE") ?? 512);
 
 /**
  * Maximum width of structure.
  */
-export const MAX_WIDTH = 256;
+export const MAX_WIDTH = Number(Deno.env.get("MAX_SIZE") ?? 512);
 
 /**
  * Maximum depth of structure.
