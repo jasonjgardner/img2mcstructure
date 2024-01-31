@@ -7,3 +7,4 @@ export {
   toFileUrl,
 } from "https://deno.land/std@0.212.0/path/mod.ts";
 export { nanoid } from "https://deno.land/x/nanoid@v3.0.0/mod.ts";
+export { parseArgs } from "https://deno.land/std@0.213.0/cli/parse_args.ts";

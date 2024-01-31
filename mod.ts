@@ -1,4 +1,4 @@
-import type { Axis, IBlock, IMcStructure, RGB } from "./types.ts";
+import type { Axis, IBlock, IMcStructure } from "./types.ts";
 import { imagescript, nbt } from "./deps.ts";
 import decode from "./_decode.ts";
 import createPalette from "./_palette.ts";
@@ -9,46 +9,13 @@ import {
   MAX_DEPTH,
 } from "./_constants.ts";
 import rotateStructure from "./_rotate.ts";
+import { compareStates, getNearestColor } from "./_lib.ts";
 
 export { createPalette, decode, rotateStructure };
 
 type StructurePalette = Array<
   Pick<IBlock, "states" | "version"> & { name: string }
 >;
-
-/**
- * Calculate the distance between two RGB colors.
- * @param color1 RGB color to compare
- * @param color2 RGB color to compare
- * @returns Distance between the two colors
- */
-export function colorDistance(color1: RGB, color2: RGB) {
-  return Math.sqrt(
-    Math.pow(color1[0] - color2[0], 2) + Math.pow(color1[1] - color2[1], 2) +
-      Math.pow(color1[2] - color2[2], 2),
-  );
-}
-
-/**
- * Attempt to find the nearest block to the given color.
- * @param color RGB color to compare
- * @param palette Array of blocks to compare against
- * @returns The block which is closest to the given color
- */
-export function getNearestColor(
-  color: RGB,
-  palette: IBlock[],
-): IBlock {
-  // https://gist.github.com/Ademking/560d541e87043bfff0eb8470d3ef4894?permalink_comment_id=3720151#gistcomment-3720151
-  return palette.reduce(
-    (prev: [number, IBlock], curr: IBlock): [number, IBlock] => {
-      const distance = colorDistance(color, curr.color.slice(0, 3) as RGB);
-
-      return (distance < prev[0]) ? [distance, curr] : prev;
-    },
-    [Number.POSITIVE_INFINITY, palette[0]],
-  )[1];
-}
 
 /**
  * Get the appropriate block for the given pixel color.
@@ -85,15 +52,6 @@ function convertBlock(
     states: nearestBlock.states ?? {},
     version: nearestBlock.version ?? BLOCK_VERSION,
   };
-}
-
-function compareStates(
-  a: Record<string, unknown>,
-  b: Record<string, unknown>,
-) {
-  return (Object.keys(a).length === Object.keys(b).length) &&
-    Object.entries(a).sort().toString() ===
-      Object.entries(b).sort().toString();
 }
 
 function findBlock(
@@ -208,7 +166,7 @@ export function constructDecoded(
  * @param name Optional name for the structure. Defaults to "img2mcstructure"
  * @returns NBT data as a buffer
  */
-export async function createStructure(
+export async function createMcStructure(
   frames: imagescript.GIF | Array<imagescript.Image | imagescript.Frame>,
   palette: IBlock[],
   axis: Axis = "x",
@@ -234,5 +192,5 @@ export default async function img2mcstructure(
 ) {
   const img = await decode(imgSrc);
 
-  return await createStructure(img, db, axis);
+  return await createMcStructure(img, db, axis);
 }
