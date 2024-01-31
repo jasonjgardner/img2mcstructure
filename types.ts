@@ -2,20 +2,14 @@ export type Axis = "x" | "y" | "z";
 export type RGB = [number, number, number];
 export type RGBA = [number, number, number, number];
 
-export interface IBlockEntry {
-  /**
-   * Friendly name of the block
-   */
-  name: string;
-  id: string;
-  texture: string;
-  enabled: boolean;
-  tags: string[];
-}
+export type PaletteSource = Record<
+  string,
+  string | Pick<IBlock, "hexColor" | "states" | "version">
+>;
 
 export interface IBlock {
   version: number;
-  id: IBlockEntry["id"];
+  id: string;
   states: Record<string, unknown>;
   hexColor: string;
   color: RGB | RGBA;

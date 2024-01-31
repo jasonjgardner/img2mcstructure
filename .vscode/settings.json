@@ -3,6 +3,7 @@
   "deno.lint": true,
   "deno.unstable": true,
   "cSpell.words": [
-    "imagescript"
+    "imagescript",
+    "mcstructure"
   ]
 }
