@@ -1,5 +1,5 @@
 import type { Axis } from "../types.ts";
-import { createStructure } from "../mod.ts";
+import { createMcStructure } from "../mod.ts";
 import decode from "../_decode.ts";
 import blocks from "../db/rgb.ts";
 import { join } from "../deps.ts";
@@ -14,7 +14,7 @@ export default async function main(
     throw new Error("Image is empty.");
   }
 
-  return await createStructure(img, blocks, axis);
+  return await createMcStructure(img, blocks, axis);
 }
 
 if (import.meta.main) {

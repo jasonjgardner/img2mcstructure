@@ -88,6 +88,9 @@ function SelectPalette({ onChange }: { onChange: (value: string[]) => void }) {
   }, {
     name: "RGB",
     value: "rgb",
+  }, {
+    name: "RGB (Java)",
+    value: "rgb_java",
   }];
   return (
     <div className="flex flex-col space-y-1.5">
