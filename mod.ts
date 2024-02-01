@@ -113,10 +113,7 @@ export function constructDecoded(
   for (let z = 0; z < depth; z++) {
     const img = frames[z];
 
-    // FIXME: Image must be rotated 90 degrees for some reason
-    img.rotate(90);
-
-    for (const [x, y, c] of img.iterateWithColors()) {
+    for (const [y, x, c] of img.iterateWithColors()) {
       let [nearest, blockIdx] = memo.get(c) ??
         findBlock(c, palette, blockPalette);
 
@@ -132,8 +129,7 @@ export function constructDecoded(
         memo.set(c, [nearest, blockIdx]);
       }
 
-      const key = (z * img.width * img.height) + (y * img.width) +
-        (img.width - x - 1);
+      const key = ((height - y) * width + (width - x)) * depth + z;
 
       layer[key] = blockIdx;
     }
