@@ -1,6 +1,6 @@
 import type { Axis, IBlock } from "../types.ts";
 import { imagescript, nbt } from "../deps.ts";
-import { DEFAULT_BLOCK, MASK_BLOCK } from "../_constants.ts";
+import { DEFAULT_BLOCK, MASK_BLOCK, MAX_DEPTH } from "../_constants.ts";
 import { compareStates, getNearestColor } from "../_lib.ts";
 import decode from "../_decode.ts";
 
@@ -73,7 +73,7 @@ export function constructDecoded(
   const size: [number, number, number] = [
     frames[0].width,
     frames[0].height,
-    frames.length,
+    Math.min(frames.length, MAX_DEPTH),
   ];
 
   const [width, height, depth] = size;
