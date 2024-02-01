@@ -1,7 +1,7 @@
 import type { Axis, IBlock } from "../types.ts";
 import { imagescript, nbt } from "../deps.ts";
 import { DEFAULT_BLOCK, MASK_BLOCK, MAX_DEPTH } from "../_constants.ts";
-import { compareStates, getNearestColor } from "../_lib.ts";
+import { compareStates, getNearestColor } from "../lib/_util.ts";
 import decode from "../_decode.ts";
 
 export interface IPaletteEntry {

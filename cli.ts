@@ -2,7 +2,7 @@
 import type { Axis, PaletteSource } from "./types.ts";
 import { basename, extname, join, parseArgs } from "./deps.ts";
 import img2mcstructure, { createPalette } from "./mod.ts";
-import { parseDbInput } from "./_lib.ts";
+import { parseDbInput } from "./lib/_util.ts";
 
 export default async function main(
   src: string,

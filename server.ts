@@ -2,7 +2,7 @@
 import type { PaletteSource } from "./types.ts";
 import { serveDir } from "https://deno.land/std@0.213.0/http/file_server.ts";
 import img2mcstructure, { createPalette } from "./mod.ts";
-import { parseDbInput } from "./_lib.ts";
+import { parseDbInput } from "./lib/_util.ts";
 
 export default function main(
   defaultDb: PaletteSource,

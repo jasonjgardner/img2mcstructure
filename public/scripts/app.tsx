@@ -289,7 +289,7 @@ function App() {
                 checked={axis === "y"}
                 onChange={(e) => setAxis(e.target.value === "y" ? "y" : "x")}
               />{" "}
-              Ceiling / Floor
+              Wall
             </label>
             <label
               className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 space-x-2 flex justify-start"
@@ -303,7 +303,7 @@ function App() {
                 checked={axis === "x"}
                 onChange={(e) => setAxis(e.target.value === "x" ? "x" : "y")}
               />
-              Wall
+              Floor
             </label>
           </fieldset>
         </div>

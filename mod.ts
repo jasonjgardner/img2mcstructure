@@ -9,7 +9,7 @@ import {
   MAX_DEPTH,
 } from "./_constants.ts";
 import rotateStructure from "./_rotate.ts";
-import { compareStates, getNearestColor } from "./_lib.ts";
+import { compareStates, getNearestColor } from "./lib/_util.ts";
 
 export { createPalette, decode, rotateStructure };
 

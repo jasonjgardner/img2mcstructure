@@ -1,4 +1,4 @@
-import type { IBlock, RGB } from "./types.ts";
+import type { IBlock, RGB } from "../types.ts";
 export function compareStates(
   a: Record<string, unknown>,
   b: Record<string, unknown>,

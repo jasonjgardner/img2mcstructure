@@ -1,6 +1,6 @@
 import img2nbt from "./mod.ts";
 import createPalette from "../_palette.ts";
-import { parseDbInput } from "../_lib.ts";
+import { parseDbInput } from "../lib/_util.ts";
 import { basename, extname, join, parseArgs } from "../deps.ts";
 import type { Axis, PaletteSource } from "../types.ts";
 
