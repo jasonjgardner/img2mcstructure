@@ -8,7 +8,9 @@
             "example/*",
             "public/**/*",
             "static/*",
-            "tests/*"
+            "tests/*",
+            "server.ts",
+            "main.ts"
         ]
     }
 }

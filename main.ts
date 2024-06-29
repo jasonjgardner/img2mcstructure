@@ -1,5 +1,5 @@
-import type { Axis } from "./types.ts";
-import cli from "./cli.ts";
+import type { Axis } from "./src/types.ts";
+import cli from "./src/mcstructure/cli.ts";
 import server from "./server.ts";
 import db from "./db/minecraft.json" with { type: "json" };
 import process from "node:process"

@@ -1,20 +1,21 @@
-import createFunction, { writeTsFunction } from "./setBlock.ts";
-import { walk } from "https://deno.land/std@0.213.0/fs/walk.ts";
-import { basename, extname, join } from "../deps.ts";
+import createFunction from "./setBlock.ts";
+import { basename, extname, join, writeFile, readdir } from "../deps.ts";
+import process from "node:process";
 
 if (import.meta.main) {
-  const dir = Deno.args[0] ?? Deno.cwd();
+  const dir = process.argv[0] ?? process.cwd();
 
   let itr = 0;
+  const files = await readdir(dir, { recursive: true });
 
-  for await (const { path } of walk(dir)) {
+  for await (const path of files) {
     if (!path.endsWith(".png")) {
       continue;
     }
 
     const fn = `${basename(path, extname(path))}.mcfunction`;
 
-    await Deno.writeTextFile(
+    await writeFile(
       join(dir, fn),
       await createFunction(path, [200, 100, 200]),
     );
@@ -22,5 +23,5 @@ if (import.meta.main) {
     itr++;
   }
 
-  Deno.exit(0);
+  process.exit(0);
 }

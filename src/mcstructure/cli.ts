@@ -1,10 +1,10 @@
-import img2schematic from "./mod.ts";
-import createPalette from "../_palette.ts";
-import { parseDbInput } from "../_lib.ts";
-import { basename, extname, join, parseArgs, writeFile } from "../deps.ts";
+#!/usr/bin/env -S deno run --allow-read --allow-write --allow-net --allow-env
 import type { Axis, PaletteSource } from "../types.ts";
+import { basename, extname, join, parseArgs, writeFile } from "../../deps.ts";
+import img2mcstructure, { createPalette } from "../mcstructure/mod.ts";
+import { parseDbInput } from "../_lib.ts";
+import process from "node:process"
 import { watch } from "node:fs/promises";
-import process from "node:process";
 
 export default async function main(
   src: string,
@@ -16,12 +16,12 @@ export default async function main(
 
   const structureDest = join(
     dest ?? process.cwd(),
-    `${basename(src, extname(src))}_${axis}_${Date.now()}.schematic`,
+    `${basename(src, extname(src))}_${axis}_${Date.now()}.mcstructure`,
   );
 
   await writeFile(
     structureDest,
-    await img2schematic(
+    await img2mcstructure(
       src,
       palette,
       axis,

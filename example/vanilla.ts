@@ -1,15 +1,17 @@
-import type { Axis } from "../types.ts";
+import type { Axis } from "../src/types.ts";
 import { nanoid } from "../deps.ts";
-import img2mcstructure, { createPalette } from "../mod.ts";
+import img2mcstructure, { createPalette } from "../src/mcstructure/mod.ts";
 import db from "../db/minecraft.json" with { type: "json" };
+import process from "node:process";
+import { writeFile } from "../deps.ts";
 
 const structureId = nanoid(6);
 
-await Deno.writeFile(
+await writeFile(
   `./vanilla_${structureId}.mcstructure`,
   await img2mcstructure(
-    Deno.args[0],
+    process.argv[0],
     createPalette(db),
-    (Deno.args[1] ?? "x") as Axis,
+    (process.argv[1] ?? "x") as Axis,
   ),
 );

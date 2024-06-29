@@ -1,5 +1,5 @@
 import type { Axis, IBlock } from "../types.ts";
-import { imagescript, nbt } from "../deps.ts";
+import { imagescript, nbt } from "../../deps.ts";
 import { DEFAULT_BLOCK, MASK_BLOCK } from "../_constants.ts";
 import { compareStates, getNearestColor } from "../_lib.ts";
 import decode from "../_decode.ts";
@@ -125,7 +125,7 @@ export async function createSchematic(
   });
 }
 
-export default async function img2nbt(
+export default async function img2schematic(
   imgSrc: string,
   db: IBlock[] = [],
   axis: Axis = "x",

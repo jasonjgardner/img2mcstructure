@@ -1,8 +1,9 @@
-import type { Axis } from "../types.ts";
-import { createMcStructure } from "../mod.ts";
-import decode from "../_decode.ts";
+import type { Axis } from "../src/types.ts";
+import { createMcStructure } from "../src/mcstructure/mod.ts";
+import decode from "../src/_decode.ts";
 import blocks from "../db/rgb.ts";
-import { join } from "../deps.ts";
+import { join, writeFile } from "../deps.ts";
+import process from "node:process";
 
 export default async function main(
   imgSrc: string,
@@ -18,11 +19,11 @@ export default async function main(
 }
 
 if (import.meta.main) {
-  await Deno.writeFile(
-    join(Deno.cwd(), `rgb_${Date.now()}.mcstructure`),
+  await writeFile(
+    join(process.cwd(), `rgb_${Date.now()}.mcstructure`),
     await main(
-      Deno.args[0] ?? join(Deno.cwd(), "example", "skull.png"),
-      (Deno.args[1] ?? "x") as Axis,
+      process.argv[0] ?? join(process.cwd(), "example", "skull.png"),
+      (process.argv[1] ?? "x") as Axis,
     ),
   );
 }

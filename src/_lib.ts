@@ -1,6 +1,6 @@
 import type { IBlock, RGB } from "./types.ts";
 import { PaletteSource } from "./types.ts";
-import { readFile } from "./deps.ts";
+import { readFile } from "../deps.ts";
 export function compareStates(
   a: Record<string, unknown>,
   b: Record<string, unknown>,
@@ -56,4 +56,8 @@ export async function parseDbInput(
   }
 
   return JSON.parse(await readFile(db));
+}
+
+export function hex2rgb(hex: string): RGB {
+  return hex.match(/[^#]{1,2}/g)!.map((x) => parseInt(x, 16)) as RGB;
 }

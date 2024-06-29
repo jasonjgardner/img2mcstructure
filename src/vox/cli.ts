@@ -1,6 +1,6 @@
 import vox2mcstructure, { vox2gif } from "./mod.ts";
 import { parseDbInput } from "../_lib.ts";
-import { basename, extname, imagescript, join, parseArgs, writeFile } from "../deps.ts";
+import { basename, extname, imagescript, join, parseArgs, writeFile } from "../../deps.ts";
 import createPalette from "../_palette.ts";
 import process from "node:process"
 

@@ -1,4 +1,4 @@
-import { imagescript } from "./deps.ts";
+import { imagescript, readFile } from "../deps.ts";
 import { MAX_HEIGHT, MAX_WIDTH } from "./_constants.ts";
 
 type DecodedFrames =
@@ -29,7 +29,7 @@ async function decodeUrl(
 async function decodeImageFile(
   path: string,
 ): Promise<DecodedFrames> {
-  const data = await Deno.readFile(path);
+  const data = await readFile(path);
 
   return !path.endsWith(".gif")
     ? [await imagescript.Image.decode(data)]
