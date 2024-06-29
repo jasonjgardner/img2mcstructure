@@ -1,5 +1,5 @@
 {
-    "name": "@jasonjgardner/img2mcstructure",
+    "name": "@jjg/img2mcstructure",
     "version": "1.0.0",
     "exports": "./mod.ts",
     "publish": {
