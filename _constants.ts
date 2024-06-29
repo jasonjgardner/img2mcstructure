@@ -29,4 +29,4 @@ export const MAX_WIDTH = Number(Deno.env.get("MAX_SIZE") ?? 512);
 /**
  * Maximum depth of structure.
  */
-export const MAX_DEPTH = 24;
+export const MAX_DEPTH = 256;

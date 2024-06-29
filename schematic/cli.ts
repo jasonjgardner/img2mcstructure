@@ -1,10 +1,10 @@
-#!/usr/bin/env -S deno run --allow-read --allow-write --allow-net --allow-env
-import type { Axis, PaletteSource } from "./types.ts";
-import { basename, extname, join, parseArgs, writeFile } from "./deps.ts";
-import img2mcstructure, { createPalette } from "./mod.ts";
-import { parseDbInput } from "./_lib.ts";
-import process from "node:process"
+import img2schematic from "./mod.ts";
+import createPalette from "../_palette.ts";
+import { parseDbInput } from "../_lib.ts";
+import { basename, extname, join, parseArgs, writeFile } from "../deps.ts";
+import type { Axis, PaletteSource } from "../types.ts";
 import { watch } from "node:fs/promises";
+import process from "node:process";
 
 export default async function main(
   src: string,
@@ -16,12 +16,12 @@ export default async function main(
 
   const structureDest = join(
     dest ?? process.cwd(),
-    `${basename(src, extname(src))}_${axis}_${Date.now()}.mcstructure`,
+    `${basename(src, extname(src))}_${axis}_${Date.now()}.schematic`,
   );
 
   await writeFile(
     structureDest,
-    await img2mcstructure(
+    await img2schematic(
       src,
       palette,
       axis,
@@ -32,7 +32,7 @@ export default async function main(
 }
 
 if (import.meta.main) {
-  const { axis, img, db, watch: watchFile, dest } = parseArgs(Deno.args);
+  const { axis, img, db, watch: watchFile, dest } = parseArgs(process.argv);
 
   const watcher = watchFile ? watch(img) : null;
 

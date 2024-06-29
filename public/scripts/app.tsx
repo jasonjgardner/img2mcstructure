@@ -79,19 +79,37 @@ function DropImage({ onChange }: { onChange: (file: File) => void }) {
 }
 
 function SelectPalette({ onChange }: { onChange: (value: string[]) => void }) {
-  const options = [{
-    name: "Vanilla Minecraft",
-    value: "minecraft",
-  }, {
-    name: "RAINBOW III!!!",
-    value: "rainbow",
-  }, {
-    name: "RGB",
-    value: "rgb",
-  }, {
-    name: "RGB (Java)",
-    value: "rgb_java",
-  }];
+  const options: Record<string, Array<{ name: string; value: string }>> = {
+    "Bedrock": [{
+      name: "Vanilla Minecraft",
+      value: "minecraft",
+    }, {
+      name: "RAINBOW III!!!",
+      value: "rainbow",
+    }, {
+      name: "RGB",
+      value: "rgb",
+    }],
+    "Java": [{
+      name: "RGB (Java)",
+      value: "rgb_java",
+    }, {
+      name: "RAINBOW III!!! (Java)",
+      value: "rainbow_block_java",
+    }, {
+      name: "RAINBOW III!!! Lamps",
+      value: "rainbow_lamp_java",
+    }, {
+      name: "RAINBOW III!!! Metallic Plates",
+      value: "rainbow_metal_java",
+    }, {
+      name: "RAINBOW III!!! Glass Blocks",
+      value: "rainbow_glass_java",
+    }, {
+      name: "Vanilla Minecraft (Java)",
+      value: "minecraft",
+    }],
+  };
   return (
     <div className="flex flex-col space-y-1.5">
       <label
@@ -107,8 +125,12 @@ function SelectPalette({ onChange }: { onChange: (value: string[]) => void }) {
           onChange(Array.from(e.target.selectedOptions).map((o) => o.value));
         }}
       >
-        {options.map((option) => (
-          <option value={option.value}>{option.name}</option>
+        {Object.keys(options).map((optGroup) => (
+          <optgroup label={optGroup}>
+            {options[optGroup].map((option) => (
+              <option value={option.value}>{option.name}</option>
+            ))}
+          </optgroup>
         ))}
       </select>
     </div>

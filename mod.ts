@@ -11,7 +11,7 @@ import {
 import rotateStructure from "./_rotate.ts";
 import { compareStates, getNearestColor } from "./_lib.ts";
 
-export { createPalette, decode, rotateStructure };
+export { createPalette, decode };
 
 type StructurePalette = Array<
   Pick<IBlock, "states" | "version"> & { name: string }
@@ -75,6 +75,7 @@ function findBlock(
 export function constructDecoded(
   frames: imagescript.GIF | Array<imagescript.Image | imagescript.Frame>,
   palette: IBlock[],
+  axis: Axis = "x",
 ) {
   /**
    * Block palette
@@ -94,7 +95,7 @@ export function constructDecoded(
   const size: [number, number, number] = [
     frames[0].width,
     frames[0].height,
-    Math.min(MAX_DEPTH, frames.length),
+    frames.length,
   ];
 
   const [width, height, depth] = size;

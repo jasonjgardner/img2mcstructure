@@ -18,6 +18,28 @@
         "--allow-all"
       ],
       "attachSimplePort": 9229
+    },
+    {
+      "request": "launch",
+      "name": "Debug vox2mcstructure",
+      "type": "node",
+      "program": "${workspaceFolder}/vox/cli.ts",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "C:\\Users\\jason\\.deno\\bin\\deno.EXE",
+      "runtimeArgs": [
+        "run",
+        "-A",
+        "--inspect-wait",
+        "--",
+        "./vox/cli.ts",
+        "--db",
+        "./db/rainbow.json",
+        "--src",
+        "./tests/test.vox",
+        "--dest",
+        "./tests/test.mcstructure"
+      ],
+      "attachSimplePort": 9229
     }
   ]
 }
