@@ -1,7 +1,9 @@
+import process from "node:process"
+
 /**
  * Block structure version.
  */
-export const BLOCK_VERSION = 18090528;
+export const BLOCK_VERSION = 18153475;
 
 /**
  * Default block to use when no color is matched.
@@ -19,14 +21,14 @@ export const MASK_BLOCK = "minecraft:structure_void";
  */
 export const MAX_HEIGHT = Deno.env.get("DENO_DEPLOYMENT_ID") !== undefined
   ? 64
-  : Number(Deno.env.get("MAX_SIZE") ?? 512);
+  : Number(process.env.MAX_SIZE ?? 256);
 
 /**
  * Maximum width of structure.
  */
-export const MAX_WIDTH = Number(Deno.env.get("MAX_SIZE") ?? 512);
+export const MAX_WIDTH = Number(process.env.MAX_SIZE ?? 256);
 
 /**
  * Maximum depth of structure.
  */
-export const MAX_DEPTH = 24;
+export const MAX_DEPTH = 256;

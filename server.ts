@@ -1,8 +1,8 @@
 #!/usr/bin/env -S deno run --allow-read --allow-net
-import type { PaletteSource } from "./types.ts";
+import type { PaletteSource } from "./src/types.ts";
 import { serveDir } from "https://deno.land/std@0.213.0/http/file_server.ts";
-import img2mcstructure, { createPalette } from "./mod.ts";
-import { parseDbInput } from "./_lib.ts";
+import img2mcstructure, { createPalette } from "./src/mcstructure/mod.ts";
+import { parseDbInput } from "./src/_lib.ts";
 
 export default function main(
   defaultDb: PaletteSource,

@@ -1,11 +1,12 @@
-import type { Axis } from "../types.ts";
+import type { Axis } from "../src/types.ts";
 import { nanoid } from "../deps.ts";
-import img2mcstructure, { createPalette } from "../mod.ts";
+import img2mcstructure, { createPalette } from "../src/mcstructure/mod.ts";
 import OpenAI from "npm:openai";
-import { load } from "https://deno.land/std@0.212.0/dotenv/mod.ts";
+import dotenv from "npm:dotenv";
 import db from "../db/rainbow.json" with { type: "json" };
-
-const { OPENAI_API_KEY } = await load();
+import { writeFile } from "../deps.ts";
+import process from "node:process";
+const { OPENAI_API_KEY } = dotenv.config().parsed ?? {};
 
 export default async function main(
   prompt: string,
@@ -37,18 +38,13 @@ export default async function main(
 if (import.meta.main) {
   const imagePrompt = prompt("Image prompt: ");
 
-  if (!imagePrompt) {
-    console.error("Image prompt is required.");
-    Deno.exit(1);
-  }
-
   try {
     const file = `./dalle_${nanoid(6)}.mcstructure`;
-    await Deno.writeFile(
+    await writeFile(
       file,
       await main(
-        imagePrompt,
-        (Deno.args[0] ?? "x") as Axis,
+        imagePrompt?.toString() ?? "Surprise me!",
+        (process.argv[0] ?? "x") as Axis,
       ),
     );
     console.log(`Created ${file}`);

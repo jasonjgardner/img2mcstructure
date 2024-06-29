@@ -6,7 +6,8 @@
     "dev:backend": "deno run -A ./main.ts",
     "dev:tailwind": "tailwindcss -i ./style.css -o ./static/style.css --watch",
     "ci:deploy": "deno fmt && deno task build:tailwind && deno task build:packup",
-    "dev": "deno task ci:deploy && deno task dev:backend"
+    "dev": "deno task ci:deploy && deno task dev:backend",
+    "demo:bds": "deno run -A ./bds/_pack.ts && deno run -A ./bds/_bds.ts"
   },
   "compilerOptions": {
     "lib": ["esnext", "dom", "dom.iterable", "dom.asynciterable", "deno.ns"]

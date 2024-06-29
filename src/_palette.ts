@@ -1,5 +1,6 @@
 import type { IBlock, PaletteSource, RGB, RGBA } from "./types.ts";
 import { BLOCK_VERSION } from "./_constants.ts";
+import { hex2rgb } from "./_lib.ts";
 
 /**
  * Converts database of colors to palette of block data.
@@ -29,7 +30,7 @@ export default function createPalette(
       hexColor,
       color: color ??
         (hexColor
-          ? hexColor.match(/[^#]{1,2}/g)!.map((x) => parseInt(x, 16)) as RGB
+          ? hex2rgb(hexColor)
           : [0, 0, 0, 0] as RGBA),
       states,
       version,

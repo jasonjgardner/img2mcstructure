@@ -1,0 +1,16 @@
+{
+    "name": "@jjg/img2mcstructure",
+    "version": "1.0.0",
+    "exports": "./mod.ts",
+    "publish": {
+        "exclude": [
+            "db/*",
+            "example/*",
+            "public/**/*",
+            "static/*",
+            "tests/*",
+            "server.ts",
+            "main.ts"
+        ]
+    }
+}

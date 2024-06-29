@@ -1,6 +1,8 @@
 cache/
 *.mcstructure
+*.mcpack
 *.nbt
 .env
 !.env.example
 dist/*
+build/*

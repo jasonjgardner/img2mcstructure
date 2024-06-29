@@ -1,6 +1,8 @@
-import type { Axis } from "../types.ts";
+import type { Axis } from "../src/types.ts";
 import { nanoid } from "../deps.ts";
-import img2mcstructure, { createPalette } from "../mod.ts";
+import img2mcstructure, { createPalette } from "../src/mcstructure/mod.ts";
+import { writeFile } from "../deps.ts";
+import process from "node:process";
 
 const { default: mc } = await import("../db/minecraft.json");
 const { default: rainbow } = await import("../db/rainbow.json");
@@ -18,11 +20,11 @@ const palette = createPalette(Object.fromEntries(
 
 const structureId = nanoid(6);
 
-await Deno.writeFile(
+await writeFile(
   `./stained_glass_window_${structureId}.mcstructure`,
   await img2mcstructure(
-    Deno.args[0],
+    process.argv[0],
     palette,
-    (Deno.args[1] ?? "x") as Axis,
+    (process.argv[1] ?? "x") as Axis,
   ),
 );
