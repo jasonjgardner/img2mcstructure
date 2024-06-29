@@ -138,15 +138,15 @@ export async function createNbtStructure(
   palette: IBlock[],
   axis: Axis = "x",
   name = "img2nbt",
-) {
+): Promise<Uint8Array> {
   const decoded = constructDecoded(frames, palette, axis);
   const structure = JSON.stringify(decoded, null, 2);
 
   return await nbt.write(nbt.parse(structure), {
-    name,
+    // name,
     endian: "big",
     compression: null,
-    bedrockLevel: null,
+    bedrockLevel: false,
   });
 }
 
@@ -154,7 +154,7 @@ export default async function img2nbt(
   imgSrc: string,
   db: IBlock[] = [],
   axis: Axis = "x",
-) {
+): Promise<Uint8Array> {
   const img = await decode(imgSrc);
 
   return await createNbtStructure(img, db, axis);

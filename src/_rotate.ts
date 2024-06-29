@@ -1,6 +1,6 @@
 import type { Axis, IMcStructure } from "./types.ts";
 
-function rotateOverY(structure: IMcStructure) {
+function rotateOverY(structure: IMcStructure): IMcStructure {
   const { size, structure: { block_indices: [layer] } } = structure;
   const [width, height, depth] = size;
 
@@ -27,7 +27,7 @@ function rotateOverY(structure: IMcStructure) {
   return structure;
 }
 
-function rotateOverZ(structure: IMcStructure) {
+function rotateOverZ(structure: IMcStructure): IMcStructure {
   const { size, structure: { block_indices: [layer] } } = structure;
   const [width, height, depth] = size;
 
@@ -53,7 +53,7 @@ function rotateOverZ(structure: IMcStructure) {
   return structure;
 }
 
-function rotateOverX(structure: IMcStructure) {
+function rotateOverX(structure: IMcStructure): IMcStructure {
   const { size, structure: { block_indices: [layer] } } = structure;
   const [width, height, depth] = size;
 
@@ -79,7 +79,7 @@ function rotateOverX(structure: IMcStructure) {
 export default function rotateStructure(
   structure: IMcStructure,
   axis: Axis,
-) {
+): IMcStructure {
   if (axis === "y") {
     return rotateOverY(structure);
   }

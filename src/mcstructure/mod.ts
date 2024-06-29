@@ -76,7 +76,7 @@ export function constructDecoded(
   frames: imagescript.GIF | Array<imagescript.Image | imagescript.Frame>,
   palette: IBlock[],
   axis: Axis = "x",
-) {
+): IMcStructure {
   /**
    * Block palette
    */
@@ -168,17 +168,17 @@ export async function createMcStructure(
   palette: IBlock[],
   axis: Axis = "x",
   name = "img2mcstructure",
-) {
+): Promise<Uint8Array> {
   const decoded = constructDecoded(frames, palette);
   const structure = JSON.stringify(
     axis !== "x" ? rotateStructure(decoded, axis) : decoded,
   );
 
   return await nbt.write(nbt.parse(structure), {
-    name,
+    // name,
     endian: "little",
     compression: null,
-    bedrockLevel: null,
+    bedrockLevel: false,
   });
 }
 
@@ -186,7 +186,7 @@ export default async function img2mcstructure(
   imgSrc: string,
   db: IBlock[] = [],
   axis: Axis = "x",
-) {
+): Promise<Uint8Array> {
   const img = await decode(imgSrc);
 
   return await createMcStructure(img, db, axis);

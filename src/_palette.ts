@@ -10,7 +10,7 @@ import { hex2rgb } from "./_lib.ts";
  */
 export default function createPalette(
   db: PaletteSource,
-) {
+): IBlock[] {
   const blockPalette: IBlock[] = [];
 
   for (const idx in db) {

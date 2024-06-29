@@ -6,7 +6,7 @@
         "exclude": [
             "db/*",
             "example/*",
-            "public/**/*",
+            "public/*",
             "static/*",
             "tests/*",
             "server.ts",

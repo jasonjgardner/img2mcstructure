@@ -13,6 +13,20 @@ export interface ISchemaBlock {
   state: number;
 }
 
+export interface ISchematicTag {
+  x: number;
+  y: number;
+  z: number;
+  Width: number;
+  Height: number;
+  Length: number;
+  Data: ISchemaBlock[];
+  Blocks: PaletteBlock[];
+  Entities: unknown[];
+  TileEntities: unknown[];
+  Materials: string;
+}
+
 /**
  * Get the appropriate block for the given pixel color.
  * @param c Pixel color
@@ -53,7 +67,7 @@ export function constructDecoded(
   frames: imagescript.GIF | Array<imagescript.Image | imagescript.Frame>,
   palette: IBlock[],
   axis: Axis = "x",
-) {
+): ISchematicTag {
   /**
    * Structure size (X, Y, Z)
    */
@@ -91,7 +105,7 @@ export function constructDecoded(
     }
   }
 
-  const tag = {
+  const tag: ISchematicTag = {
     x: 0,
     y: 0,
     z: 0,
@@ -113,15 +127,15 @@ export async function createSchematic(
   palette: IBlock[],
   axis: Axis = "x",
   name = "img2schematic",
-) {
+): Promise<Uint8Array> {
   const decoded = constructDecoded(frames, palette, axis);
   const structure = JSON.stringify(decoded, null, 2);
 
   return await nbt.write(nbt.parse(structure), {
-    name,
+    //name,
     endian: "big",
     compression: null,
-    bedrockLevel: null,
+    bedrockLevel: false,
   });
 }
 
@@ -129,7 +143,7 @@ export default async function img2schematic(
   imgSrc: string,
   db: IBlock[] = [],
   axis: Axis = "x",
-) {
+): Promise<Uint8Array> {
   const img = await decode(imgSrc);
 
   return await createSchematic(img, db, axis);

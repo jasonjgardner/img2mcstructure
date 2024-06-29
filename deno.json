@@ -1,4 +1,7 @@
 {
+  "name": "@jjg/img2mcstructure",
+  "version": "1.0.0",
+  "exports": "./mod.ts",
   "tasks": {
     "build:tailwind": "tailwindcss -i ./style.css -o ./static/style.css --minify",
     "build:packup": "packup build ./public/index.html",
@@ -10,6 +13,12 @@
     "demo:bds": "deno run -A ./bds/_pack.ts && deno run -A ./bds/_bds.ts"
   },
   "compilerOptions": {
-    "lib": ["esnext", "dom", "dom.iterable", "dom.asynciterable", "deno.ns"]
+    "lib": [
+      "esnext",
+      "dom",
+      "dom.iterable",
+      "dom.asynciterable",
+      "deno.ns"
+    ]
   }
 }

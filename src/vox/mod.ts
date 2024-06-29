@@ -1,9 +1,8 @@
-import { readFile } from "node:fs/promises";
 import { BLOCK_VERSION, DEFAULT_BLOCK, MASK_BLOCK } from "../_constants.ts";
 import type { IBlock, IMcStructure } from "../types.ts";
-import readVox from "npm:vox-reader";
+import readVox from "npm:vox-reader@2.1.2";
 import { compareStates, getNearestColor } from "../_lib.ts";
-import { basename, imagescript, nbt } from "../../deps.ts";
+import { basename, imagescript, nbt, readFile } from "../../deps.ts";
 
 interface VoxData {
   pack: {
@@ -88,7 +87,7 @@ function findBlock(
 export function constructDecoded(
   vox: VoxData,
   palette: IBlock[],
-) {
+): IMcStructure {
   /**
    * Block palette
    */
@@ -230,16 +229,16 @@ export async function vox2gif(
 export default async function vox2mcstructure(
   voxSrc: string,
   db: IBlock[] = [],
-) {
+): Promise<Uint8Array> {
   const data = await readFile(voxSrc);
   const vox: VoxData = readVox(data);
 
   const structure = JSON.stringify(constructDecoded(vox, db));
 
   return await nbt.write(nbt.parse(structure), {
-    name: basename(voxSrc, ".vox"),
+    // name: basename(voxSrc, ".vox"),
     endian: "little",
-    compression: null,
-    bedrockLevel: null,
+    compression: "gzip",
+    bedrockLevel: false,
   });
 }

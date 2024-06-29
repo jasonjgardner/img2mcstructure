@@ -55,7 +55,7 @@ export async function parseDbInput(
     return await res.json();
   }
 
-  return JSON.parse(await readFile(db));
+  return JSON.parse(await readFile(db, "utf8"));
 }
 
 export function hex2rgb(hex: string): RGB {
