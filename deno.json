@@ -20,5 +20,8 @@
       "dom.asynciterable",
       "deno.ns"
     ]
+  },
+  "imports": {
+    "npm:imagescript": "https://deno.land/x/imagescript@1.3.0/ImageScript.js"
   }
 }
