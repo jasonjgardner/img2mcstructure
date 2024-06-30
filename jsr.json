@@ -10,7 +10,8 @@
             "./static/*",
             "./tests/*",
             "./server.ts",
-            "./main.ts"
+            "./main.ts",
+            "./deno.json"
         ],
         "include": [
             "./src/**/*",
