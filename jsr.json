@@ -4,13 +4,18 @@
     "exports": "./mod.ts",
     "publish": {
         "exclude": [
-            "db/*",
-            "example/*",
-            "public/*",
-            "static/*",
-            "tests/*",
-            "server.ts",
-            "main.ts"
+            "./db/*",
+            "./example/*",
+            "./public/*",
+            "./static/*",
+            "./tests/*",
+            "./server.ts",
+            "./main.ts"
+        ],
+        "include": [
+            "./src/**/*",
+            "./deps.ts",
+            "./mod.ts"
         ]
     }
 }
