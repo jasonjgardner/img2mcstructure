@@ -40,7 +40,7 @@ export function getNearestColor(
 
       return (distance < prev[0]) ? [distance, curr] : prev;
     },
-    [Number.POSITIVE_INFINITY, palette[0]],
+    [Number.POSITIVE_INFINITY, palette[0]] as [number, IBlock],
   )[1];
 }
 

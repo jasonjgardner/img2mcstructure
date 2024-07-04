@@ -1,5 +1,5 @@
 import createFunction from "./setBlock.ts";
-import { basename, extname, join, writeFile, readdir } from "../deps.ts";
+import { basename, extname, join, readdir, writeFile } from "../deps.ts";
 import process from "node:process";
 
 if (import.meta.main) {

@@ -32,7 +32,34 @@ export default async function main(
 }
 
 if (import.meta.main) {
-  const { axis, img, db, watch: watchFile, dest } = parseArgs(process.argv);
+  const { values: {axis, img, db, watch: watchFile, dest} } = parseArgs(
+    {
+      args: process.argv.slice(2),
+      options: {
+        axis: {
+          type: "string",
+          default: "x",
+          multiple: false,
+        },
+        img: {
+          type: "string",
+          multiple: false,
+        },
+        db: {
+          type: "string",
+          multiple: false,
+        },
+        watch: {
+          type: "boolean",
+          multiple: false,
+        },
+        dest: {
+          type: "string",
+          multiple: false,
+        },
+      },
+    },
+  );
 
   const watcher = watchFile ? watch(img) : null;
 
@@ -40,10 +67,10 @@ if (import.meta.main) {
     const extensions = [".png", ".jpg", ".jpeg", ".gif"];
     for await (const event of watcher) {
       if (
-        event.kind === "create" && extensions.includes(extname(event.paths[0])!)
+        event.eventType === "change" && extensions.includes(extname(event.filename))
       ) {
         await main(
-          event.paths[0],
+          event.filename,
           await parseDbInput(db),
           (axis ?? "x") as Axis,
         );

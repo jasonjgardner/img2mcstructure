@@ -1,5 +1,6 @@
 import type { Axis, IBlock, IMcStructure } from "../types.ts";
-import { imagescript, nbt } from "../../deps.ts";
+import { nbt } from "../../deps.ts";
+import * as imagescript from "imagescript";
 import decode from "../_decode.ts";
 import createPalette from "../_palette.ts";
 import {

@@ -1,4 +1,4 @@
-import { qrcode } from "https://deno.land/x/qrcode@v2.0.0/mod.ts";
+import { qrPng } from "@sigmasd/qrpng";
 import type { Axis } from "../src/types.ts";
 import { nanoid } from "../deps.ts";
 import img2mcstructure, { createPalette } from "../src/mcstructure/mod.ts";
@@ -15,11 +15,8 @@ const palette = createPalette(Object.fromEntries(
   ).map((id) => [id, db[id as keyof typeof db]]),
 ));
 
-const qr = await qrcode(
-  process.argv[0] ?? "https://github.com/jasonjgardner/img2mcstructure",
-  {
-    size: 128,
-  },
+const qr = qrPng(
+  new TextEncoder().encode(process.argv[0] ?? "https://github.com/jasonjgardner/img2mcstructure"),
 );
 
 const structureId = nanoid(6);
@@ -27,7 +24,7 @@ const structureId = nanoid(6);
 await writeFile(
   `./qr_${structureId}.mcstructure`,
   await img2mcstructure(
-    qr,
+    btoa(new TextDecoder().decode(qr)),
     palette,
     (process.argv[1] ?? "x") as Axis,
   ),

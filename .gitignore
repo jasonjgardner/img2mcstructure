@@ -6,3 +6,4 @@ cache/
 !.env.example
 dist/*
 build/*
+node_modules/

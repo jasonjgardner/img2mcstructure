@@ -1,4 +1,4 @@
-import process from "node:process"
+import process from "node:process";
 
 /**
  * Block structure version.
@@ -19,7 +19,7 @@ export const MASK_BLOCK = "minecraft:structure_void";
  * Maximum size of structure.\
  * Clamp to 64x256x24 when deployed to Deno Deploy.
  */
-export const MAX_HEIGHT = Deno.env.get("DENO_DEPLOYMENT_ID") !== undefined
+export const MAX_HEIGHT = process.env.DENO_DEPLOYMENT_ID !== undefined
   ? 64
   : Number(process.env.MAX_SIZE ?? 256);
 

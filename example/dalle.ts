@@ -1,12 +1,15 @@
 import type { Axis } from "../src/types.ts";
 import { nanoid } from "../deps.ts";
 import img2mcstructure, { createPalette } from "../src/mcstructure/mod.ts";
-import OpenAI from "npm:openai";
-import dotenv from "npm:dotenv";
+import OpenAI from "openai";
+import { load } from "@std/dotenv";
 import db from "../db/rainbow.json" with { type: "json" };
 import { writeFile } from "../deps.ts";
 import process from "node:process";
-const { OPENAI_API_KEY } = dotenv.config().parsed ?? {};
+
+await load();
+
+const { OPENAI_API_KEY } = process.env;
 
 export default async function main(
   prompt: string,

@@ -29,9 +29,7 @@ export default function createPalette(
       id,
       hexColor,
       color: color ??
-        (hexColor
-          ? hex2rgb(hexColor)
-          : [0, 0, 0, 0] as RGBA),
+        (hexColor ? hex2rgb(hexColor) : [0, 0, 0, 0] as RGBA),
       states,
       version,
     });

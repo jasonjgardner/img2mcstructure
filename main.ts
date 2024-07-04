@@ -1,15 +1,16 @@
 import type { Axis } from "./src/types.ts";
 import cli from "./src/mcstructure/cli.ts";
 import server from "./server.ts";
-import db from "./db/minecraft.json" with { type: "json" };
+import db from "./db/rainbow_lit.json" with { type: "json" };
+import process from "node:process";
 
-if (Deno.args.length > 2) {
+if (process.argv.length > 2) {
   await cli(
-    Deno.args[0],
+    process.argv[2],
     db,
-    (Deno.args[1] ?? "x") as Axis,
+    (process.argv[3] ?? "x") as Axis,
   );
-  Deno.exit(0);
+  process.exit(0);
 }
 
 server(db);

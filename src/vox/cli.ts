@@ -1,9 +1,15 @@
 import vox2mcstructure, { vox2gif } from "./mod.ts";
 import { parseDbInput } from "../_lib.ts";
-import { basename, extname, imagescript, join, parseArgs, writeFile } from "../../deps.ts";
+import {
+  basename,
+  extname,
+  imagescript,
+  join,
+  parseArgs,
+  writeFile,
+} from "../../deps.ts";
 import createPalette from "../_palette.ts";
-import process from "node:process"
-
+import process from "node:process";
 
 if (import.meta.main) {
   if (process.argv.length < 6) {
@@ -11,7 +17,25 @@ if (import.meta.main) {
     process.exit(1);
   }
 
-  const { db, src, dest } = parseArgs(process.argv);
+  const { values: {db, src, dest} } = parseArgs(
+    {
+      args: process.argv.slice(2),
+      options: {
+        db: {
+          type: "string",
+          multiple: false,
+        },
+        src: {
+          type: "string",
+          multiple: false,
+        },
+        dest: {
+          type: "string",
+          multiple: false,
+        },
+      },
+    },
+  )
 
   const gif = new imagescript.GIF(await vox2gif(src));
 
