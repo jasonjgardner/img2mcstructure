@@ -63,17 +63,19 @@ async function sliceImage(
     const baseName = basename(src, extname(src))
 
 	const namespace = baseName.replace(/\W|\.\@\$\%/g, "_");
-	const image = await imagescript.Image.decode(
-		!src.startsWith("data")
-			? await readFile(src)
-			: Buffer.from(src.split(",")[1], "base64"),
-	);
+
+	const imgSrc = src.startsWith("data") ? new TextEncoder().encode(src) : (await readFile(src));
+
+	const image = await imagescript.Image.decode(imgSrc);
 	const images = [];
 
 	const width = image.width / gridSize;
 	const height = image.height / gridSize;
 
-	const terrainData = {};
+	const terrainData: Record<string, {
+		textures: string | string[],
+		carried_texture?: string,
+	}> = {};
 
 	const blocksData: {
 		[key: string]:
@@ -184,7 +186,12 @@ export default async function img2mcaddon(
 		// Download source
 		const response = await fetch(src);
 		const buffer = await response.arrayBuffer();
-		img = `data:${response.headers.get("Content-Type") ?? "image/png"};base64,${Buffer.from(buffer).toString("base64")}`;
+
+		const data = new Uint8Array(buffer);
+
+		img = `data:${response.headers.get("Content-Type") ?? "image/png"};base64,${btoa(
+			new TextDecoder().decode(data),
+		)}`;
 	}
 
 	const addon = await sliceImage(img.toString(), gridSize, resolution);

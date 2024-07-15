@@ -15,7 +15,7 @@ export default async function img2mcfunction(
   imgSrc: string,
   blocks: PaletteSource,
   offset: [number, number, number] = [0, 0, 0],
-) {
+): Promise<string> {
   const frames = await decode(imgSrc);
 
   const len = Math.min(256, frames.length);
