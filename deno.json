@@ -24,7 +24,7 @@
   "imports": {
     "@hono/hono": "jsr:@hono/hono@^4.4.11",
     "imagescript": "https://deno.land/x/imagescript@1.3.0/mod.ts",
-    "jszip": "https://esm.sh/jszip@3.10.1",
+    "jszip": "npm:jszip@3.10.1",
     "nanoid": "npm:nanoid@5.0.7",
     "nbtify": "npm:nbtify@1.90.1",
     "classix": "npm:classix@^2.1.38",
