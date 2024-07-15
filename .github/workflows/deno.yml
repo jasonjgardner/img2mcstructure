@@ -2,9 +2,9 @@ name: Deno Deploy
 
 on:
   push:
-    branches: ["main"]
+    branches: ["deploy"]
   pull_request:
-    branches: ["main"]
+    branches: ["deploy"]
 
 permissions:
   id-token: write
