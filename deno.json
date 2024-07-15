@@ -23,7 +23,7 @@
   },
   "imports": {
     "@hono/hono": "jsr:@hono/hono@^4.4.11",
-    "imagescript": "npm:imagescript@1.3.0", //https://deno.land/x/imagescript@1.3.0/mod.ts",
+    "imagescript": "https://deno.land/x/imagescript@1.3.0/mod.ts",
     "jszip": "npm:jszip@3.10.1",
     "nanoid": "npm:nanoid@5.0.7",
     "nbtify": "npm:nbtify@1.90.1",
@@ -42,6 +42,7 @@
       "./deno.json"
     ],
     "include": [
+      "./README.md",
       "./src/**/*",
       "./deps.ts",
       "./mod.ts"

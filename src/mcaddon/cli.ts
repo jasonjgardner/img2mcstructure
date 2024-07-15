@@ -1,7 +1,7 @@
-import img2mcaddon from "./mod.ts";
 import { basename } from "node:path";
 import { writeFile} from "node:fs/promises";
 import { parseArgs } from "node:util";
+import img2mcaddon from "./mod.ts";
 
 async function createAddon(
     src: string | URL,

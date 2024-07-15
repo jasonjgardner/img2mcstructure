@@ -1,5 +1,6 @@
 import type { Axis, IBlock } from "../types.ts";
-import { imagescript, nbt } from "../../deps.ts";
+import * as nbt from "nbtify";
+import * as imagescript from "imagescript";
 import { DEFAULT_BLOCK, MASK_BLOCK, MAX_DEPTH } from "../_constants.ts";
 import { compareStates, getNearestColor } from "../_lib.ts";
 import decode from "../_decode.ts";

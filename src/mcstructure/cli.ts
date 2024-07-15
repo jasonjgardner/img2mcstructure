@@ -1,9 +1,10 @@
 import type { Axis, PaletteSource } from "../types.ts";
-import { basename, extname, join, parseArgs, writeFile } from "../../deps.ts";
+import { basename, extname, join } from "node:path";
+import { watch, writeFile} from "node:fs/promises";
+import process from "node:process";
+import { parseArgs } from "node:util";
 import img2mcstructure, { createPalette } from "../mcstructure/mod.ts";
 import { parseDbInput } from "../_lib.ts";
-import process from "node:process";
-import { watch } from "node:fs/promises";
 
 export default async function main(
   src: string,

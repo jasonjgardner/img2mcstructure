@@ -1,6 +1,5 @@
-import type { IBlock, RGB } from "./types.ts";
-import { PaletteSource } from "./types.ts";
-import { readFile } from "../deps.ts";
+import type { IBlock, RGB, PaletteSource } from "./types.ts";
+import { readFile } from "node:fs/promises";
 export function compareStates(
   a: Record<string, unknown>,
   b: Record<string, unknown>,
@@ -18,8 +17,8 @@ export function compareStates(
  */
 export function colorDistance(color1: RGB, color2: RGB) {
   return Math.sqrt(
-    Math.pow(color1[0] - color2[0], 2) + Math.pow(color1[1] - color2[1], 2) +
-      Math.pow(color1[2] - color2[2], 2),
+    (color1[0] - color2[0]) ** 2 + (color1[1] - color2[1]) ** 2 +
+      (color1[2] - color2[2]) ** 2,
   );
 }
 
@@ -59,5 +58,5 @@ export async function parseDbInput(
 }
 
 export function hex2rgb(hex: string): RGB {
-  return hex.match(/[^#]{1,2}/g)!.map((x) => parseInt(x, 16)) as RGB;
+  return hex.match(/[^#]{1,2}/g)?.map((x) => Number.parseInt(x, 16)) as RGB;
 }

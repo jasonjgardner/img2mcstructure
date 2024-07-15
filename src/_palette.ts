@@ -1,4 +1,4 @@
-import type { IBlock, PaletteSource, RGB, RGBA } from "./types.ts";
+import type { IBlock, PaletteSource, RGBA } from "./types.ts";
 import { BLOCK_VERSION } from "./_constants.ts";
 import { hex2rgb } from "./_lib.ts";
 
