@@ -32,7 +32,7 @@ export default async function main(
 }
 
 if (import.meta.main) {
-  const { values: {axis, img, db, watch: watchFile, dest} } = parseArgs({
+  const { values: { axis, img, db, watch: watchFile, dest } } = parseArgs({
     args: process.argv.slice(2),
     options: {
       axis: {
@@ -65,7 +65,8 @@ if (import.meta.main) {
     const extensions = [".png", ".jpg", ".jpeg", ".gif"];
     for await (const event of watcher) {
       if (
-        event.eventType === "change" && extensions.includes(extname(event.filename))
+        event.eventType === "change" &&
+        extensions.includes(extname(event.filename))
       ) {
         await main(
           event.filename,

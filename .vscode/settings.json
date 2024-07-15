@@ -1,9 +1,6 @@
 {
-  "deno.enable": true,
+  "deno.enable": false,
   "deno.lint": true,
   "deno.unstable": true,
-  "cSpell.words": [
-    "imagescript",
-    "mcstructure"
-  ]
+  "cSpell.words": ["imagescript", "mcstructure"]
 }

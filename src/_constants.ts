@@ -13,7 +13,7 @@ export const DEFAULT_BLOCK = "minecraft:air";
 /**
  * Mask block to use when color is below alpha threshold.
  */
-export const MASK_BLOCK = "minecraft:structure_void";
+export const MASK_BLOCK = DEFAULT_BLOCK; //"minecraft:structure_void";
 
 /**
  * Maximum size of structure.\

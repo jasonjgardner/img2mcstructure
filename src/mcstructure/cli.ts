@@ -1,4 +1,3 @@
-#!/usr/bin/env -S deno run --allow-read --allow-write --allow-net --allow-env
 import type { Axis, PaletteSource } from "../types.ts";
 import { basename, extname, join, parseArgs, writeFile } from "../../deps.ts";
 import img2mcstructure, { createPalette } from "../mcstructure/mod.ts";
@@ -65,7 +64,8 @@ if (import.meta.main) {
     const extensions = [".png", ".jpg", ".jpeg", ".gif"];
     for await (const event of watcher) {
       if (
-        event.eventType === "change" && extensions.includes(extname(event.filename))
+        event.eventType === "change" &&
+        extensions.includes(extname(event.filename))
       ) {
         await main(
           event.filename,

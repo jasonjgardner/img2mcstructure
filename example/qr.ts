@@ -16,7 +16,9 @@ const palette = createPalette(Object.fromEntries(
 ));
 
 const qr = qrPng(
-  new TextEncoder().encode(process.argv[0] ?? "https://github.com/jasonjgardner/img2mcstructure"),
+  new TextEncoder().encode(
+    process.argv[0] ?? "https://github.com/jasonjgardner/img2mcstructure",
+  ),
 );
 
 const structureId = nanoid(6);
