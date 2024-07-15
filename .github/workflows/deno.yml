@@ -19,8 +19,9 @@ jobs:
         uses: actions/checkout@v4
       - name: Compile frontend
         uses: oven-sh/setup-bun@v2
-      - run: bunx tailwindcss -i ./app/assets/style.css -o ./dist/style.css
+      - run: bun install
       - run: bun build ./app/index.tsx > ./dist/bundle.js
+      - run: bunx tailwindcss -i ./app/assets/style.css -o ./dist/style.css
 
       - name: Setup Deno
         # uses: denoland/setup-deno@v1
