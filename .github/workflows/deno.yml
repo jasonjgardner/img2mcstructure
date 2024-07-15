@@ -26,12 +26,11 @@ jobs:
       - run: bunx tailwindcss -i ./app/assets/style.css -o ./dist/style.css
 
       - name: Setup Deno
-        # uses: denoland/setup-deno@v1
-        uses: denoland/setup-deno@61fe2df320078202e33d7d5ad347e7dcfa0e8f31 # v1.1.2
+        uses: denoland/setup-deno@v1
         with:
           deno-version: v1.x
       - name: Deploy to Deno Deploy
-        uses: denoland/deployctl@1.10.3
+        uses: denoland/deployctl@1.12.0
         with:
           project: mcstructure
           entrypoint: main.ts
