@@ -16,18 +16,17 @@ jobs:
 
     steps:
       - name: Setup repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+      - name: Compile frontend
+        uses: oven-sh/setup-bun@v2
+      - run: bunx tailwindcss -i ./app/assets/style.css -o ./dist/style.css
+      - run: bun build ./app/index.tsx > ./dist/bundle.js
 
       - name: Setup Deno
         # uses: denoland/setup-deno@v1
         uses: denoland/setup-deno@61fe2df320078202e33d7d5ad347e7dcfa0e8f31 # v1.1.2
         with:
           deno-version: v1.x
-      - name: Setup
-        run: |
-          deno install -qAf https://deno.land/x/packup@v0.2.4/cli.ts
-          packup -v
-          packup build ./public/index.html
       - name: Deploy to Deno Deploy
         uses: denoland/deployctl@1.10.3
         with:
