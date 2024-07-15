@@ -1,5 +1,5 @@
 import type { PaletteSource } from "../types.ts";
-import imagescript from "imagescript";
+import * as imagescript from "imagescript";
 import { getNearestColor } from "../_lib.ts";
 import decode from "../_decode.ts";
 import createPalette from "../_palette.ts";
