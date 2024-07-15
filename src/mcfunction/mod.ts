@@ -4,9 +4,16 @@ import { getNearestColor } from "../_lib.ts";
 import decode from "../_decode.ts";
 import createPalette from "../_palette.ts";
 
-export default async function createFunction(
-  blocks: PaletteSource,
+/**
+ * Convert an image to a series of `setblock` commands.
+ * @param imgSrc Source image
+ * @param blocks Block palette database
+ * @param offset Coordinate offset to apply to the `setblock` function
+ * @returns mcfunction lines
+ */
+export default async function img2mcfunction(
   imgSrc: string,
+  blocks: PaletteSource,
   offset: [number, number, number] = [0, 0, 0],
 ) {
   const frames = await decode(imgSrc);
@@ -19,6 +26,10 @@ export default async function createFunction(
     const img = frames[z];
     for (const [x, y, c] of img.iterateWithColors()) {
       const [r, g, b, a] = imagescript.Image.colorToRGBA(c);
+
+      if (a < 128) {
+        continue;
+      }
 
       const nearest = getNearestColor([r, g, b], createPalette(blocks));
       lines.push(

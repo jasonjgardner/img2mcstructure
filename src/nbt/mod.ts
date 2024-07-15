@@ -12,7 +12,13 @@ export interface IPaletteEntry {
 
 export type StructurePalette = IPaletteEntry[];
 
+/**
+ * NBT format
+ */
 export interface INbtBlock {
+  /**
+   * Block position (X, Y, Z)
+   */
   pos: [number, number, number];
   state: number;
 }
@@ -151,6 +157,13 @@ export async function createNbtStructure(
   });
 }
 
+/**
+ * Create a NBT structure from an image.
+ * @param imgSrc Image source
+ * @param db Block palette
+ * @param axis Axis orientation
+ * @returns NBT structure data
+ */
 export default async function img2nbt(
   imgSrc: string,
   db: IBlock[] = [],
