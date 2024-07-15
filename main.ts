@@ -13,6 +13,8 @@ if (import.meta.main && process.argv.length > 2) {
   process.exit(0);
 }
 
+console.log("Starting server...");
+
 export default {
   port: 8000,
   fetch: server(db).fetch,

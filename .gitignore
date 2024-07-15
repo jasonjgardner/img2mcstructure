@@ -1,6 +1,7 @@
 cache/
 *.mcstructure
 *.mcpack
+*.mcaddon
 *.nbt
 .env
 !.env.example
