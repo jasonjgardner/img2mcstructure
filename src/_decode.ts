@@ -76,11 +76,13 @@ export default async function decode(
   }
 
   // Resize every frame above the max width/height
-  return img!.map((i: Image | GIF) =>
+  const frames = img?.map((i: imagescript.Image | imagescript.Frame) =>
     i.height > MAX_HEIGHT
       ? i.resize(imagescript.Image.RESIZE_AUTO, MAX_HEIGHT)
       : i.width > MAX_WIDTH
       ? i.resize(MAX_WIDTH, imagescript.Image.RESIZE_AUTO)
       : i
-  ) as DecodedFrames;
+  ) ?? [];
+
+  return frames as DecodedFrames;
 }
