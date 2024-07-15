@@ -185,6 +185,13 @@ export async function createMcStructure(
   });
 }
 
+/**
+ * Convert an image to a Minecraft Bedrock structure file.
+ * @param imgSrc Image source
+ * @param db Block palette
+ * @param axis Axis on which to stack frames
+ * @returns .mcstructure data
+ */
 export default async function img2mcstructure(
   imgSrc: string,
   db: IBlock[] = [],

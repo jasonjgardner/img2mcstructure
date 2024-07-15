@@ -2,7 +2,7 @@ import type { Axis, IBlock } from "../types.ts";
 import * as nbt from "nbtify";
 import * as imagescript from "imagescript";
 import { DEFAULT_BLOCK, MASK_BLOCK } from "../_constants.ts";
-import { compareStates, getNearestColor } from "../_lib.ts";
+import { getNearestColor } from "../_lib.ts";
 import decode from "../_decode.ts";
 
 export type PaletteBlock = string;
@@ -14,6 +14,9 @@ export interface ISchemaBlock {
   state: number;
 }
 
+/**
+ * Schematic NBT format
+ */
 export interface ISchematicTag {
   x: number;
   y: number;
@@ -140,6 +143,13 @@ export async function createSchematic(
   });
 }
 
+/**
+ * Convert an image to a Minecraft schematic file.
+ * @param imgSrc Source image to convert
+ * @param db Block palette to use
+ * @param axis Axis on which to stack frames
+ * @returns NBT schematic data
+ */
 export default async function img2schematic(
   imgSrc: string,
   db: IBlock[] = [],
