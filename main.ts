@@ -1,16 +1,21 @@
 import type { Axis } from "./src/types.ts";
 import cli from "./src/mcstructure/cli.ts";
-import server from "./server.ts";
-import db from "./db/rainbow_lit.json" with { type: "json" };
+import server from "./server.tsx";
+import db from "./db/minecraft.json" with { type: "json" };
 import process from "node:process";
 
-if (process.argv.length > 2) {
+if (import.meta.main && process.argv.length > 2) {
   await cli(
-    process.argv[2],
+    process.argv[0],
     db,
-    (process.argv[3] ?? "x") as Axis,
+    (process.argv[1] ?? "x") as Axis,
   );
   process.exit(0);
 }
 
-server(db);
+console.log("Starting server...");
+
+export default {
+  port: 8000,
+  fetch: server(db).fetch,
+};

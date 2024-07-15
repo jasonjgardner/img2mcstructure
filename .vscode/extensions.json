@@ -1,5 +1,3 @@
 {
-  "recommendations": [
-    "misodee.vscode-nbt"
-  ]
+  "recommendations": ["misodee.vscode-nbt"]
 }

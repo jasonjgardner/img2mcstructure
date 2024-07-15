@@ -1,6 +1,5 @@
 import type { Axis, IBlock, IMcStructure } from "../types.ts";
-import { nbt } from "../../deps.ts";
-import * as imagescript from "imagescript";
+import { nbt, imagescript } from "../../deps.ts";
 import decode from "../_decode.ts";
 import createPalette from "../_palette.ts";
 import {
@@ -131,7 +130,7 @@ export function constructDecoded(
         memo.set(c, [nearest, blockIdx]);
       }
 
-      const key = ((height - y) * width + (width - x)) * depth + z;
+      const key = (Math.abs(y - height) * width + (width - x)) * depth + z;
 
       layer[key] = blockIdx;
     }

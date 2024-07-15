@@ -22,10 +22,12 @@
     ]
   },
   "imports": {
+    "@hono/hono": "jsr:@hono/hono@^4.4.11",
     "imagescript": "https://deno.land/x/imagescript@1.3.0/mod.ts",
-    "nbtify": "npm:nbtify@1.90.1",
-    "jszip": "npm:jszip@3.10.1",
+    "jszip": "https://esm.sh/jszip@3.10.1",
     "nanoid": "npm:nanoid@5.0.7",
+    "nbtify": "npm:nbtify@1.90.1",
+    "classix": "npm:classix@^2.1.38",
     "vox-reader": "npm:vox-reader@2.1.2"
   },
   "publish": {
@@ -44,5 +46,23 @@
       "./deps.ts",
       "./mod.ts"
     ]
+  },
+  "deploy": {
+    "project": "4cdbec4d-9050-468c-9ec4-a26f559995f3",
+    "exclude": [
+      "./cache",
+      "./build",
+      "*.mcstructure",
+      "**/node_modules",
+      "./example",
+      "./bds"
+    ],
+    "include": [
+      "./dist",
+      "./db",
+      "./src",
+      "./main.ts"
+    ],
+    "entrypoint": "main.ts"
   }
 }

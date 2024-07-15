@@ -1,2 +1,7 @@
 [install.scopes]
 "@jsr" = "https://npm.jsr.io"
+
+[builds]
+entry = "app/index.jsx"
+output = "dist/bundle.js"
+target = "bun"

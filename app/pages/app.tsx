@@ -1,168 +1,13 @@
-/** @jsxImportSource https://esm.sh/react@18.2.0" */
-/** @jsxRuntime automatic */
-import React, {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "https://esm.sh/react@18.2.0";
-import ReactDOM from "https://esm.sh/react-dom@18.2.0";
-import { nanoid } from "https://cdn.jsdelivr.net/npm/nanoid/nanoid.js";
-import type { PaletteSource } from "../../types.ts";
+import { useCallback, useEffect, useRef, useState } from "@hono/hono/jsx/dom";
+import { nanoid } from "nanoid";
+import { DropImage, SelectPalette, SelectSize } from "../components/index.tsx";
+import type { PaletteSource } from "../../src/types.ts";
 
 const SVC_URL = "/v1/structure";
 const MAX_HEIGHT = 512;
 const MAX_WIDTH = 512;
 
-function DropImage({ onChange }: { onChange: (file: File) => void }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [dragging, setDragging] = useState(false);
-
-  useEffect(() => {
-    const onDragOver = (e: DragEvent) => {
-      e.preventDefault();
-      setDragging(true);
-    };
-    const onDragLeave = (e: DragEvent) => {
-      e.preventDefault();
-      setDragging(false);
-    };
-    const onDrop = (e: DragEvent) => {
-      e.preventDefault();
-      setDragging(false);
-      if (e.dataTransfer?.files) {
-        onChange(e.dataTransfer.files[0]);
-      }
-    };
-    document.addEventListener("dragover", onDragOver);
-    document.addEventListener("dragleave", onDragLeave);
-    document.addEventListener("drop", onDrop);
-    return () => {
-      document.removeEventListener("dragover", onDragOver);
-      document.removeEventListener("dragleave", onDragLeave);
-      document.removeEventListener("drop", onDrop);
-    };
-  }, []);
-
-  const className =
-    "border-dashed border-2 border-gray-500 dark:border-gray-400 rounded-md flex flex-grow items-center justify-center cursor-pointer h-full min-h-40" +
-    (dragging ? " border-blue-500" : "");
-
-  return (
-    <div
-      {...{ className }}
-      onClick={() => {
-        inputRef.current?.click();
-      }}
-    >
-      Drag and drop your image here or{" "}
-      <label
-        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-blue-500 underline cursor-pointer"
-        htmlFor="image-upload"
-      >
-        browse
-      </label>
-      <input
-        className="flex-grow h-full w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 hidden"
-        id="image-upload"
-        type="file"
-        accept="image/*"
-        onChange={(e) => {
-          if (e.target.files) {
-            onChange(e.target.files[0]);
-          }
-        }}
-        ref={inputRef}
-      />
-    </div>
-  );
-}
-
-function SelectPalette({ onChange }: { onChange: (value: string[]) => void }) {
-  const options: Record<string, Array<{ name: string; value: string }>> = {
-    "Bedrock": [{
-      name: "Vanilla Minecraft",
-      value: "minecraft",
-    }, {
-      name: "RAINBOW III!!!",
-      value: "rainbow",
-    }, {
-      name: "RGB",
-      value: "rgb",
-    }],
-    "Java": [{
-      name: "RGB (Java)",
-      value: "rgb_java",
-    }, {
-      name: "RAINBOW III!!! (Java)",
-      value: "rainbow_block_java",
-    }, {
-      name: "RAINBOW III!!! Lamps",
-      value: "rainbow_lamp_java",
-    }, {
-      name: "RAINBOW III!!! Metallic Plates",
-      value: "rainbow_metal_java",
-    }, {
-      name: "RAINBOW III!!! Glass Blocks",
-      value: "rainbow_glass_java",
-    }, {
-      name: "Vanilla Minecraft (Java)",
-      value: "minecraft",
-    }],
-  };
-  return (
-    <div className="flex flex-col space-y-1.5">
-      <label
-        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-        htmlFor="palette"
-      >
-        Palette
-      </label>
-      <select
-        className="w-full rounded-md border border-input px-3 py-2 text-sm"
-        multiple
-        onChange={(e) => {
-          onChange(Array.from(e.target.selectedOptions).map((o) => o.value));
-        }}
-      >
-        {Object.keys(options).map((optGroup) => (
-          <optgroup label={optGroup}>
-            {options[optGroup].map((option) => (
-              <option value={option.value}>{option.name}</option>
-            ))}
-          </optgroup>
-        ))}
-      </select>
-    </div>
-  );
-}
-
-function SelectSize(
-  { onChange, value }: { onChange: (value: number) => void; value: number },
-) {
-  const options = [16, 32, 64, 128, 256, 512];
-  return (
-    <div className="flex flex-col space-y-1.5">
-      <label
-        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-        htmlFor="size"
-      >
-        Size
-      </label>
-      <select
-        className="h-10 w-full rounded-md border border-input px-3 py-2 text-sm"
-        onChange={(e) => {
-          onChange(Number(e.target.value));
-        }}
-        value={value}
-      >
-        {options.map((option) => <option value={option}>{option}</option>)}
-      </select>
-    </div>
-  );
-}
-
-function App() {
+export default function App() {
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [userSetSize, setUserSetSize] = useState<boolean>(false);
   const [size, setSize] = useState(64);
@@ -207,7 +52,7 @@ function App() {
               0,
               0,
               canvasRef.current.width,
-              canvasRef.current.height,
+              canvasRef.current.height
             );
             ctx.drawImage(img, 0, 0, newWidth, newHeight);
           }
@@ -246,12 +91,14 @@ function App() {
   // TODO: Cache responses
   const handlePaletteChange = async (palettes: string[]) => {
     setDb([]);
-    const selected = (await Promise.all(
-      palettes.map(async (id) => {
-        const res = await fetch(`/db/${id}`);
-        return res.json() as Promise<PaletteSource>;
-      }),
-    )).flat();
+    const selected = (
+      await Promise.all(
+        palettes.map(async (id) => {
+          const res = await fetch(`/db/${id}`);
+          return res.json() as Promise<PaletteSource>;
+        })
+      )
+    ).flat();
 
     setDb(selected);
   };
@@ -259,7 +106,7 @@ function App() {
   return (
     <main className="container mx-auto">
       <h1 className="font-sans text-2xl font-semibold">img2mcstructure</h1>
-      <div className="flex flex-col h-full space-y-2 mt-4">
+      <form className="flex flex-col h-full space-y-2 mt-4">
         <DropImage
           onChange={(file) => {
             setImage(file);
@@ -293,7 +140,7 @@ function App() {
               id="title"
               placeholder="Enter image title"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => setTitle((e.target as HTMLInputElement).value)}
             />
           </div>
 
@@ -309,7 +156,11 @@ function App() {
                 id="axis-y"
                 value="y"
                 checked={axis === "y"}
-                onChange={(e) => setAxis(e.target.value === "y" ? "y" : "x")}
+                onChange={(e) =>
+                  setAxis(
+                    (e.target as HTMLInputElement).value === "y" ? "y" : "x"
+                  )
+                }
               />{" "}
               Ceiling / Floor
             </label>
@@ -323,7 +174,11 @@ function App() {
                 id="axis-x"
                 value="x"
                 checked={axis === "x"}
-                onChange={(e) => setAxis(e.target.value === "x" ? "x" : "y")}
+                onChange={({ target }) =>
+                  setAxis(
+                    (target as HTMLInputElement).value === "x" ? "x" : "y"
+                  )
+                }
               />
               Wall
             </label>
@@ -336,18 +191,11 @@ function App() {
           className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full"
           onClick={handleSubmit}
           disabled={isProcessing || image === null || title === ""}
+          type="button"
         >
           Submit
         </button>
-      </div>
+      </form>
     </main>
   );
 }
-
-function main() {
-  ReactDOM.render(React.createElement(App), document.querySelector("#app"));
-}
-
-addEventListener("DOMContentLoaded", () => {
-  main();
-});

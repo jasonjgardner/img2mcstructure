@@ -1,3 +1,4 @@
+import type { GIF, Image } from "imagescript";
 import { imagescript, readFile } from "../deps.ts";
 import { MAX_HEIGHT, MAX_WIDTH } from "./_constants.ts";
 
@@ -28,9 +29,8 @@ async function decodeUrl(
  */
 async function decodeImageFile(
   path: string,
+  data: Uint8Array
 ): Promise<DecodedFrames> {
-  const data = await readFile(path);
-
   return !path.endsWith(".gif")
     ? [await imagescript.Image.decode(data)]
     : [...(await imagescript.GIF.decode(data, false))] as imagescript.GIF;
@@ -76,7 +76,7 @@ export default async function decode(
   }
 
   // Resize every frame above the max width/height
-  return (img ?? await decodeImageFile(path)).map((i) =>
+  return img!.map((i: Image | GIF) =>
     i.height > MAX_HEIGHT
       ? i.resize(imagescript.Image.RESIZE_AUTO, MAX_HEIGHT)
       : i.width > MAX_WIDTH
