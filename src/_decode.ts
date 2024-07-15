@@ -1,10 +1,10 @@
-import type { GIF, Image } from "imagescript";
-import { imagescript, readFile } from "../deps.ts";
+import { GIF, Image, type Frame } from "imagescript";
+import { readFile } from "node:fs/promises";
 import { MAX_HEIGHT, MAX_WIDTH } from "./_constants.ts";
 
 type DecodedFrames =
-  | imagescript.GIF
-  | Array<imagescript.Image | imagescript.Frame>;
+  | GIF
+  | Array<Image | Frame>;
 
 /**
  * Decode an image from a URL
@@ -18,8 +18,8 @@ async function decodeUrl(
   const data = new Uint8Array(await res.arrayBuffer());
 
   return !href.endsWith(".gif")
-    ? [await imagescript.Image.decode(data)]
-    : [...(await imagescript.GIF.decode(data, false))] as imagescript.GIF;
+    ? [await Image.decode(data)]
+    : [...(await GIF.decode(data, false))] as GIF;
 }
 
 /**
@@ -32,8 +32,8 @@ async function decodeImageFile(
   data: Uint8Array
 ): Promise<DecodedFrames> {
   return !path.endsWith(".gif")
-    ? [await imagescript.Image.decode(data)]
-    : [...(await imagescript.GIF.decode(data, false))] as imagescript.GIF;
+    ? [await Image.decode(data)]
+    : [...(await GIF.decode(data, false))] as GIF;
 }
 
 /**
@@ -52,8 +52,8 @@ async function decodeBase64(
   );
 
   return !base64.startsWith("data:image/gif")
-    ? [await imagescript.Image.decode(data)]
-    : [...(await imagescript.GIF.decode(data, false))] as imagescript.GIF;
+    ? [await Image.decode(data)]
+    : [...(await GIF.decode(data, false))] as GIF;
 }
 
 /**
@@ -75,12 +75,16 @@ export default async function decode(
     img = await decodeBase64(path);
   }
 
+  if (!img) {
+    img = await decodeImageFile(path, await readFile(path));
+  }
+
   // Resize every frame above the max width/height
-  const frames = img?.map((i: imagescript.Image | imagescript.Frame) =>
+  const frames = img?.map((i: Image | Frame) =>
     i.height > MAX_HEIGHT
-      ? i.resize(imagescript.Image.RESIZE_AUTO, MAX_HEIGHT)
+      ? i.resize(Image.RESIZE_AUTO, MAX_HEIGHT)
       : i.width > MAX_WIDTH
-      ? i.resize(MAX_WIDTH, imagescript.Image.RESIZE_AUTO)
+      ? i.resize(MAX_WIDTH, Image.RESIZE_AUTO)
       : i
   ) ?? [];
 

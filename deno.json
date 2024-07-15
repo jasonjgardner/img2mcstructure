@@ -42,6 +42,7 @@
       "./deno.json"
     ],
     "include": [
+      "./README.md",
       "./src/**/*",
       "./deps.ts",
       "./mod.ts"

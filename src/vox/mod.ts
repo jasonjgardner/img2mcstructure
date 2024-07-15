@@ -2,7 +2,9 @@ import { BLOCK_VERSION, DEFAULT_BLOCK, MASK_BLOCK } from "../_constants.ts";
 import type { IBlock, IMcStructure } from "../types.ts";
 import readVox from "vox-reader";
 import { compareStates, getNearestColor } from "../_lib.ts";
-import { imagescript, nbt, readFile } from "../../deps.ts";
+import * as nbt from "nbtify";
+import * as imagescript from "imagescript";
+import { readFile } from "node:fs/promises";
 
 interface VoxData {
   pack: {
@@ -188,7 +190,7 @@ export async function vox2gif(
     for (const value of vox.xyzi.values) {
       const [x, y, z, i] = [value.x, value.y, value.z, value.i];
 
-      if (z === z) {
+      if (z === size[0] - z) {
         layer[(size[1] - y) * size[2] + (size[2] - x)] = i;
       }
     }

@@ -1,5 +1,6 @@
 import type { Axis, IBlock, IMcStructure } from "../types.ts";
-import { nbt, imagescript } from "../../deps.ts";
+import * as nbt from "nbtify"
+import * as imagescript from "imagescript"
 import decode from "../_decode.ts";
 import createPalette from "../_palette.ts";
 import {
@@ -111,7 +112,9 @@ export function constructDecoded(
   const layer = Array.from({ length: width * height * depth }, () => -1);
   const waterLayer = layer.slice();
 
-  for (let z = 0; z < depth; z++) {
+  const loopDepth = Math.min(MAX_DEPTH, depth);
+
+  for (let z = 0; z < loopDepth; z++) {
     const img = frames[z];
 
     for (const [y, x, c] of img.iterateWithColors()) {

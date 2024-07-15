@@ -6,6 +6,11 @@ import process from "node:process";
 export const BLOCK_VERSION = 18153475;
 
 /**
+ * Minecraft behavior block format version.
+ */
+export const BLOCK_FORMAT_VERSION = "1.20.80";
+
+/**
  * Default block to use when no color is matched.
  */
 export const DEFAULT_BLOCK = "minecraft:air";

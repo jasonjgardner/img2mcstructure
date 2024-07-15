@@ -1,10 +1,11 @@
+import type { Axis, PaletteSource } from "../types.ts";
+import { basename, extname, join } from "node:path";
+import { watch, writeFile } from "node:fs/promises";
+import process from "node:process";
+import { parseArgs } from "node:util";
 import img2schematic from "./mod.ts";
 import createPalette from "../_palette.ts";
 import { parseDbInput } from "../_lib.ts";
-import { basename, extname, join, parseArgs, writeFile } from "../../deps.ts";
-import type { Axis, PaletteSource } from "../types.ts";
-import { watch } from "node:fs/promises";
-import process from "node:process";
 
 export default async function main(
   src: string,

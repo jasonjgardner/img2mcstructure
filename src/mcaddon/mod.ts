@@ -4,9 +4,7 @@ import { readFile } from "node:fs/promises";
 import { basename, extname } from "node:path";
 import img2mcstructure, { createPalette } from "../mcstructure/mod.ts";
 import type { PaletteSource, RGB } from "../types.ts";
-import { BLOCK_VERSION } from "../_constants.ts";
-
-const BLOCK_FORMAT_VERSION = "1.20.80";
+import { BLOCK_VERSION, BLOCK_FORMAT_VERSION } from "../_constants.ts";
 
 function getAverageColor(image: imagescript.Image): string {
 	const rgb = imagescript.Image.colorToRGB(image.averageColor());
