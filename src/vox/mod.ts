@@ -2,7 +2,7 @@ import { BLOCK_VERSION, DEFAULT_BLOCK, MASK_BLOCK } from "../_constants.ts";
 import type { IBlock, IMcStructure } from "../types.ts";
 import readVox from "vox-reader";
 import { compareStates, getNearestColor } from "../_lib.ts";
-import { basename, imagescript, nbt, readFile } from "../../deps.ts";
+import { imagescript, nbt, readFile } from "../../deps.ts";
 
 interface VoxData {
   pack: {
