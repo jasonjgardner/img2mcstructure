@@ -60,3 +60,15 @@ export async function parseDbInput(
 export function hex2rgb(hex: string): RGB {
   return hex.match(/[^#]{1,2}/g)?.map((x) => Number.parseInt(x, 16)) as RGB;
 }
+
+export function rgb2hex(rgb: RGB): string {
+  return `#${rgb[0].toString(16).padStart(2, "0")}${rgb[1].toString(16).padStart(2, "0")}${rgb[2].toString(16).padStart(2, "0")}`;
+}
+
+export function uint8arrayToBase64(arr: Uint8Array): string {
+  return btoa(new TextDecoder("utf8").decode(arr));
+}
+
+export function base642uint8array(str: string): Uint8Array {
+  return new TextEncoder().encode(atob(str));
+}

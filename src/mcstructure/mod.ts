@@ -1,4 +1,4 @@
-import type { Axis, IBlock, IMcStructure } from "../types.ts";
+import type { Axis, IBlock, IMcStructure, StructurePalette } from "../types.ts";
 import * as nbt from "nbtify"
 import * as imagescript from "imagescript"
 import decode from "../_decode.ts";
@@ -13,10 +13,6 @@ import rotateStructure from "../_rotate.ts";
 import { compareStates, getNearestColor } from "../_lib.ts";
 
 export { createPalette, decode };
-
-type StructurePalette = Array<
-  Pick<IBlock, "states" | "version"> & { name: string }
->;
 
 /**
  * Get the appropriate block for the given pixel color.

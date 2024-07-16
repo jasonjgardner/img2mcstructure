@@ -34,3 +34,7 @@ export interface IMcStructure {
     };
   };
 }
+
+export type StructurePalette = Array<
+  Pick<IBlock, "states" | "version"> & { name: string }
+>;
