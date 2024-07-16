@@ -2,7 +2,7 @@ import JSZip from "jszip";
 import * as imagescript from "imagescript";
 import { readFile } from "node:fs/promises";
 import { basename, extname } from "node:path";
-import img2mcstructure, { createPalette } from "../mcstructure/mod.ts";
+import img2mcstructure, { createPalette, decode } from "../mcstructure/mod.ts";
 import type { PaletteSource, RGB } from "../types.ts";
 import { BLOCK_VERSION, BLOCK_FORMAT_VERSION } from "../_constants.ts";
 
@@ -28,10 +28,10 @@ function createBlock({
 		"minecraft:block": {
 			description: {
 				identifier: `${namespace}:slice_${x}_${y}`,
-				menu_category: {
-					category: "construction",
-					// group: "itemGroup.name.concrete"
-				},
+				// menu_category: {
+				// 	category: "construction",
+				// 	group: "itemGroup.name.concrete"
+				// },
 				traits: {},
 			},
 			components: {
@@ -63,11 +63,7 @@ async function sliceImage(
     const baseName = basename(src, extname(src))
 
 	const namespace = baseName.replace(/\W|\.\@\$\%/g, "_");
-	const image = await imagescript.Image.decode(
-		!src.startsWith("data")
-			? await readFile(src)
-			: Buffer.from(src.split(",")[1], "base64"),
-	);
+	const image = (await decode(src))[0];
 	const images = [];
 
 	const width = image.width / gridSize;
@@ -155,14 +151,19 @@ async function sliceImage(
 	addon.file("rp/pack_icon.png", icon);
 	addon.file("bp/pack_icon.png", icon);
 
-    const structure = await img2mcstructure(
-        // Encode image as base64
-        src,
-        createPalette(blockPalette),
-        "x",
-    );
+	const db = createPalette(blockPalette)
 
-    addon.file(`bp/structures/mosaic/${baseName.toLowerCase().replace(/[^A-Za-z]+/g, "_")}.mcstructure`, structure);
+    addon.file(`bp/structures/mosaic/x/${namespace}_wall.mcstructure`, await img2mcstructure(
+        src,
+        db,
+        "x",
+    ));
+
+	 addon.file(`bp/structures/mosaic/y/${namespace}_floor.mcstructure`, await img2mcstructure(
+        src,
+        db,
+        "y",
+    ))
 
 	return addon;
 }
