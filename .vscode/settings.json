@@ -2,5 +2,10 @@
   "deno.enable": false,
   "deno.lint": true,
   "deno.unstable": true,
-  "cSpell.words": ["imagescript", "mcstructure"]
+  "bun.debugTerminal.enabled": true,
+  "bun.debugTerminal.stopOnEntry": false,
+  "cSpell.words": [
+    "imagescript",
+    "mcstructure"
+  ]
 }

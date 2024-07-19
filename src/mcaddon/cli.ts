@@ -1,26 +1,18 @@
 import { basename } from "node:path";
 import { writeFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
-import img2mcaddon, { textureSet2mcaddon } from "./mod.ts";
+import process from "node:process";
+import img2mcaddon from "./mod.ts";
+import type { Axis } from "../types.ts";
 
 async function createAddon(
 	src: string | URL,
-	gridSize = 16,
+	gridSize = 3,
 	resolution = 16,
 	dest?: string,
-	mer?: string,
-	normal?: string,
+	axis?: Axis
 ) {
-	const addon =
-		mer && normal
-			? await textureSet2mcaddon({
-					color: src instanceof URL ? src.href : src,
-					mer,
-					normal,
-					gridSize,
-					resolution,
-				})
-			: await img2mcaddon(src, gridSize, resolution);
+	const addon = await img2mcaddon(src, gridSize, resolution, axis ?? "z");
 
 	const addonDest =
 		dest ??
@@ -33,7 +25,7 @@ async function createAddon(
 
 if (import.meta.main) {
 	const {
-		values: { src, gridSize, resolution, dest, mer, normal },
+		values: { src, gridSize, resolution, dest, axis },
 	} = parseArgs({
 		args: process.argv.slice(2),
 		options: {
@@ -41,18 +33,10 @@ if (import.meta.main) {
 				type: "string",
 				multiple: false,
 			},
-			mer: {
-				type: "string",
-				multiple: false,
-			},
-			normal: {
-				type: "string",
-				multiple: false,
-			},
 			gridSize: {
 				type: "string",
 				multiple: false,
-				default: "16",
+				default: "3",
 			},
 			resolution: {
 				type: "string",
@@ -63,16 +47,20 @@ if (import.meta.main) {
 				type: "string",
 				multiple: false,
 			},
+			axis: {
+				type: "string",
+				multiple: false,
+				default: "z",
+			}
 		},
 	});
 
 	await createAddon(
 		src,
-		Number(gridSize),
-		Number(resolution),
+		Math.max(1, Number(gridSize)),
+		Math.max(16, Math.min(1024, Number(resolution))),
 		dest,
-		mer,
-		normal,
+		axis as Axis
 	);
 	process.exit(0);
 }

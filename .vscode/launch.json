@@ -11,7 +11,12 @@
       "program": "${workspaceFolder}/example/rgb.ts",
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "C:\\Users\\jason\\.deno\\bin\\deno.EXE",
-      "runtimeArgs": ["run", "--unstable", "--inspect-wait", "--allow-all"],
+      "runtimeArgs": [
+        "run",
+        "--unstable",
+        "--inspect-wait",
+        "--allow-all"
+      ],
       "attachSimplePort": 9229
     },
     {
@@ -35,6 +40,29 @@
         "./tests/test.mcstructure"
       ],
       "attachSimplePort": 9229
+    },
+    {
+      "request": "launch",
+      "name": "Debug mcaddon mosaic",
+      "type": "node",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "C:\\Users\\jason\\.deno\\bin\\deno.EXE",
+      "runtimeArgs": [
+        "run",
+        "-A",
+        "--inspect-wait",
+        "./src/mcaddon/cli.ts",
+        "--resolution",
+        "256",
+        "--src",
+        "./test/connected/lobby_ceiling.png",
+        "--dest",
+        "./build/test.mcaddon",
+        "--axis",
+        "y"
+      ],
+      "attachSimplePort": 9229
+    },
     }
   ]
 }

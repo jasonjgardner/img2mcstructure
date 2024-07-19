@@ -2,7 +2,7 @@ import { GIF, Image, type Frame } from "imagescript";
 import { readFile } from "node:fs/promises";
 import { MAX_HEIGHT, MAX_WIDTH } from "./_constants.ts";
 
-type DecodedFrames =
+export type DecodedFrames =
   | GIF
   | Array<Image | Frame>;
 
@@ -60,10 +60,12 @@ async function decodeBase64(
  * Decode an image from a URL, file path, or base64 string.\
  * Returns an array of resized frames.
  * @param path Image URL, file path, or base64 string
+ * @param clamp Whether to resize frames above the max width/height
  * @returns Array of decoded frames
  */
 export default async function decode(
   path: string,
+  clamp = false,
 ): Promise<DecodedFrames> {
   let img = null;
 
@@ -79,6 +81,10 @@ export default async function decode(
     img = await decodeImageFile(path, await readFile(path));
   }
 
+  if (!clamp) {
+    return img;
+  }
+
   // Resize every frame above the max width/height
   const frames = img?.map((i: Image | Frame) =>
     i.height > MAX_HEIGHT
@@ -88,5 +94,5 @@ export default async function decode(
       : i
   ) ?? [];
 
-  return frames as DecodedFrames;
+  return frames satisfies DecodedFrames;
 }
