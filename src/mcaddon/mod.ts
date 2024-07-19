@@ -101,9 +101,7 @@ function createBlock({
 }
 
 function rotateVolume(volume: number[][][], axis: Axis): number[][][] {
-	const rotatedVolume = volume.map((z) =>
-		z.map((y) => y.map(() => -1))
-	);
+	const rotatedVolume = volume.map((z) => z.map((y) => y.map(() => -1)));
 
 	const depth = volume.length;
 	const gridSize = volume[0].length;
@@ -140,16 +138,20 @@ export default async function img2mcaddon(
 	src: string | URL,
 	gridSize: number,
 	resolution: number,
-	axis: Axis = "z"
+	axis: Axis = "z",
 ): Promise<Uint8Array> {
 	const jobId = nanoid(7);
 	const addon = new JSZip();
 
 	const colorSrc = src instanceof URL ? src.href : src;
 
-	const blocksData = {
-		format_version: [1, 0, 0],
-	};
+	const blocksData: Record<
+		string,
+		{
+			sound: string;
+			isotropic: boolean;
+		}
+	> = {};
 
 	const frames = await decode(colorSrc, false);
 
@@ -185,7 +187,12 @@ export default async function img2mcaddon(
 
 	const namespace = baseName.replace(/\W|\.\@\$\%/g, "_");
 
-	const terrainData = {};
+	const terrainData: Record<
+		string,
+		{
+			textures: string;
+		}
+	> = {};
 
 	const blockPalette: StructurePalette = [];
 
@@ -282,14 +289,15 @@ export default async function img2mcaddon(
 					textures: `textures/blocks/${sliceId}`,
 				};
 
-				const blockIdx =blockPalette.push({
-					name: `${namespace}:${sliceId}`,
-					states: {},
-					version: BLOCK_VERSION,
-				}) - 1
+				const blockIdx =
+					blockPalette.push({
+						name: `${namespace}:${sliceId}`,
+						states: {},
+						version: BLOCK_VERSION,
+					}) - 1;
 
 				volume[z][x][y] = blockIdx;
-	
+
 				blocksData[sliceId] = {
 					sound: "stone",
 					isotropic: false,
@@ -299,7 +307,8 @@ export default async function img2mcaddon(
 	}
 
 	const rotatedVolume = rotateVolume(volume, axis);
-	const size: [number, number, number] = axis === "y" ? [gridSize, depth, gridSize] : [gridSize, gridSize, depth];
+	const size: [number, number, number] =
+		axis === "y" ? [gridSize, depth, gridSize] : [gridSize, gridSize, depth];
 
 	const flatVolume = rotatedVolume.flat(2);
 
@@ -307,7 +316,17 @@ export default async function img2mcaddon(
 		throw new Error("Layer lengths do not match");
 	}
 
-	addon.file("rp/blocks.json", JSON.stringify(blocksData, null, 2));
+	addon.file(
+		"rp/blocks.json",
+		JSON.stringify(
+			{
+				format_version: [1, 0, 0],
+				...blocksData,
+			},
+			null,
+			2,
+		),
+	);
 
 	const tag: IMcStructure = {
 		format_version: 1,
