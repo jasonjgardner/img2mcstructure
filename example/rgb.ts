@@ -2,7 +2,8 @@ import type { Axis } from "../src/types.ts";
 import { createMcStructure } from "../src/mcstructure/mod.ts";
 import decode from "../src/_decode.ts";
 import blocks from "../db/rgb.ts";
-import { join, writeFile } from "../deps.ts";
+import { writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import process from "node:process";
 
 export default async function main(

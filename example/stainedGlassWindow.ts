@@ -1,7 +1,7 @@
 import type { Axis } from "../src/types.ts";
-import { nanoid } from "../deps.ts";
+import { nanoid } from "nanoid";
 import img2mcstructure, { createPalette } from "../src/mcstructure/mod.ts";
-import { writeFile } from "../deps.ts";
+import { writeFile } from "node:fs/promises";
 import process from "node:process";
 
 const { default: mc } = await import("../db/minecraft.json");
