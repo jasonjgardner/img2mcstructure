@@ -1,6 +1,6 @@
 {
   "name": "@jjg/img2mcstructure",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "exports": "./mod.ts",
   "tasks": {
     "build:tailwind": "tailwindcss -i ./style.css -o ./static/style.css --minify",
