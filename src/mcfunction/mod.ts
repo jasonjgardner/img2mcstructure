@@ -33,7 +33,7 @@ export default async function img2mcfunction(
 
       const nearest = getNearestColor([r, g, b], createPalette(blocks));
       lines.push(
-        `setblock ${x + offset[0]} ${Math.abs(img.height - y + offset[1])} ${
+        `setblock ~${Number(x + offset[0])}~${Math.abs(img.height - y + offset[1])}~${
           offset[2]
         } ${nearest.id} replace`,
       );

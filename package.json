@@ -1,7 +1,8 @@
 {
   "type": "module",
   "scripts": {
-    "format": "bunx @biomejs/biome format --write ./**/*.{js,ts,json,jsx,tsx,html,css}"
+    "format": "bunx @biomejs/biome format --write ./**/*.{js,ts,json,jsx,tsx,html,css}",
+    "build": "bun build ./app/index.tsx > ./dist/bundle.js"
   },
   "dependencies": {
     "@hono/hono": "npm:@jsr/hono__hono",
