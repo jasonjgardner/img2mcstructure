@@ -33,7 +33,7 @@ export default function main(defaultDb: PaletteSource) {
 		const { img, axis, db } = await ctx.req.json();
 
 		try {
-			const data = await createFunction(db ?? defaultDb, img, axis);
+			const data = await createFunction(img, db ?? defaultDb, [0, 0, 0]);
 
 			return new Response(data, {
 				headers: {
