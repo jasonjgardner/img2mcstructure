@@ -4,6 +4,7 @@ import { DropImage, SelectPalette, SelectSize } from "../components/index.tsx";
 import type { PaletteSource } from "../../src/types.ts";
 
 const SVC_URL = "/v1/structure";
+const SVC_URL_FUNCTION = "/v1/fill";
 const MAX_HEIGHT = 512;
 const MAX_WIDTH = 512;
 
@@ -12,6 +13,7 @@ export default function App() {
   const [userSetSize, setUserSetSize] = useState<boolean>(false);
   const [size, setSize] = useState(64);
   const [axis, setAxis] = useState<"x" | "y">("y");
+  const [isStructure, setIsStructure] = useState<boolean>(true);
   const [image, setImage] = useState<File | null>(null);
   const [title, setTitle] = useState<string>(nanoid(8));
   const [db, setDb] = useState<PaletteSource[]>([]);
@@ -63,7 +65,7 @@ export default function App() {
 
   const handleSubmit = useCallback(async () => {
     setIsProcessing(true);
-    const res = await fetch(SVC_URL, {
+    const res = await fetch(isStructure ? SVC_URL : SVC_URL_FUNCTION, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -80,7 +82,7 @@ export default function App() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${title.toLowerCase().replace(/\s+/g, "_")}.mcstructure`;
+    a.download = `${title.toLowerCase().replace(/\s+/g, "_")}.${isStructure ? "mcstructure" : "mcfunction"}`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -181,6 +183,47 @@ export default function App() {
                 }
               />
               Wall
+            </label>
+          </fieldset>
+
+          <fieldset className="flex flex-row py-1 space-x-1.5">
+            <legend className="text-lg font-sans font-medium">Structure</legend>
+                <label
+              className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 space-x-2 flex justify-start"
+              htmlFor="mcstructure"
+            >
+              <input
+                type="radio"
+                name="structure"
+                id="mcstructure"
+                value="mcstructure"
+                checked={isStructure}
+                onChange={(e) =>
+                  setIsStructure(
+                   e.target.checked
+                  )
+                }
+              />{" "}
+              .mcstructure
+            </label>
+
+            <label
+              className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 space-x-2 flex justify-start"
+              htmlFor="mcfunction"
+            >
+              <input
+                type="radio"
+                name="structure"
+                id="mcfunction"
+                value="mcfunction"
+                checked={!isStructure}
+                onChange={(e) =>
+                  setIsStructure(
+                    !e.target.checked
+                  )
+                }
+              />
+              .mcfunction
             </label>
           </fieldset>
         </div>

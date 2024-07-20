@@ -166,6 +166,11 @@ export function constructDecoded(
   return tag;
 }
 
+/**
+ * Convert a VOX file to a GIF representation.
+ * @param voxSrc VOX file path
+ * @returns ImageScript GIF or Frame array created from VOX structure layers
+ */
 export async function vox2gif(
   voxSrc: string,
 ): Promise<imagescript.GIF | imagescript.Frame[]> {
@@ -228,6 +233,12 @@ export async function vox2gif(
   return frames;
 }
 
+/**
+ * Convert a VOX file to a .mcstructure file.
+ * @param voxSrc VOX file path
+ * @param db Minecraft block palette
+ * @returns NBT data
+ */
 export default async function vox2mcstructure(
   voxSrc: string,
   db: IBlock[] = [],
