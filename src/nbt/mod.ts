@@ -1,7 +1,7 @@
 import type { Axis, IBlock } from "../types.ts";
 import * as nbt from "nbtify";
 import * as imagescript from "imagescript";
-import { DEFAULT_BLOCK, MASK_BLOCK, MAX_DEPTH } from "../_constants.ts";
+import { DEFAULT_BLOCK, MASK_BLOCK, MAX_DEPTH, NBT_DATA_VERSION } from "../_constants.ts";
 import { compareStates, getNearestColor } from "../_lib.ts";
 import decode from "../_decode.ts";
 
@@ -21,6 +21,17 @@ export interface INbtBlock {
    */
   pos: [number, number, number];
   state: number;
+}
+
+/**
+ * NBT structure format
+ */
+export interface INbtTag {
+  size: [number, number, number];
+  blocks: INbtBlock[];
+  palette: IPaletteEntry[];
+  entities: Record<string, unknown>[];
+  DataVersion: number;
 }
 
 /**
@@ -69,11 +80,18 @@ function findBlock(
   return [nearest, blockIdx];
 }
 
+/**
+ * Create an NBT structure from image frames.
+ * @param frames Image frames to convert to NBT structure layers
+ * @param palette Block palette
+ * @param axis The axis on which to orient the structure
+ * @returns NBT tag
+ */
 export function constructDecoded(
   frames: imagescript.GIF | Array<imagescript.Image | imagescript.Frame>,
   palette: IBlock[],
   axis: Axis = "x",
-) {
+): INbtTag {
   /**
    * Structure size (X, Y, Z)
    */
@@ -125,7 +143,7 @@ export function constructDecoded(
     }
   }
 
-  const tag = {
+  const tag: INbtTag = {
     size: axis === "y"
       ? [width, height, depth]
       : axis === "z"
@@ -134,17 +152,23 @@ export function constructDecoded(
     blocks,
     palette: blockPalette,
     entities: [],
-    DataVersion: 3093,
+    DataVersion: NBT_DATA_VERSION,
   };
 
   return tag;
 }
 
+/**
+ * Create a NBT structure from image frames.
+ * @param frames Image frames to convert to NBT structure layers
+ * @param palette Block palette
+ * @param axis Axis on which to orient the structure
+ * @returns NBT structure data
+ */
 export async function createNbtStructure(
   frames: imagescript.GIF | Array<imagescript.Image | imagescript.Frame>,
   palette: IBlock[],
   axis: Axis = "x",
-  name = "img2nbt",
 ): Promise<Uint8Array> {
   const decoded = constructDecoded(frames, palette, axis);
   const structure = JSON.stringify(decoded, null, 2);
@@ -158,7 +182,7 @@ export async function createNbtStructure(
 }
 
 /**
- * Create a NBT structure from an image.
+ * Decode an image and convert it to a NBT structure.
  * @param imgSrc Image source
  * @param db Block palette
  * @param axis Axis orientation

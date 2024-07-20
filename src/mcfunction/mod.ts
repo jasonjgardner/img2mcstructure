@@ -3,6 +3,7 @@ import * as imagescript from "imagescript";
 import { getNearestColor } from "../_lib.ts";
 import decode from "../_decode.ts";
 import createPalette from "../_palette.ts";
+import { MAX_DEPTH } from "../_constants.ts";
 
 /**
  * Convert an image to a series of `setblock` commands.
@@ -18,7 +19,7 @@ export default async function img2mcfunction(
 ): Promise<string> {
   const frames = await decode(imgSrc);
 
-  const len = Math.min(256, frames.length);
+  const len = Math.min(MAX_DEPTH, frames.length);
 
   const lines = [];
 

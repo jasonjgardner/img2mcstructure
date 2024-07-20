@@ -100,6 +100,7 @@ function createBlock({
 	return JSON.stringify(data, null, 2);
 }
 
+// TODO: Refactor function. It is redundant with rotateStructure function
 function rotateVolume(volume: number[][][], axis: Axis): number[][][] {
 	const rotatedVolume = volume.map((z) => z.map((y) => y.map(() => -1)));
 
@@ -127,18 +128,25 @@ function rotateVolume(volume: number[][][], axis: Axis): number[][][] {
 
 	return rotatedVolume;
 }
+
 /**
  * Convert an image to a mosaic using custom Minecraft blocks.
  * @param src Image source
- * @param gridSize The target size of the grid structure output
+ * @param gridSize The target size of the grid structure output. For best results, grid size should be the image width and height divided by the resolution.
  * @param resolution The target resolution of the block texture output
- * @returns JSZip archive data of the .mcaddon
+ * @returns Archive data of the .mcaddon
+ * @example Split an image into a 3×3 grid with 16x texture output.
+ * ```ts
+ * const file = await img2mcaddon("path/to/image.png", 3, 16);
+ * await writeFile("output.mcaddon", file);
+ * ```
  */
 export default async function img2mcaddon(
 	src: string | URL,
 	gridSize: number,
 	resolution: number,
 	axis: Axis = "z",
+	pbr = false,
 ): Promise<Uint8Array> {
 	const jobId = nanoid(7);
 	const addon = new JSZip();
@@ -185,7 +193,7 @@ export default async function img2mcaddon(
 		console.warn(`Failed to decode normal map: ${err}`);
 	}
 
-	const namespace = baseName.replace(/\W|\.\@\$\%/g, "_");
+	const namespace = baseName.replace(/\W|\.\@\$\%/g, "_").substring(0, 16);
 
 	const terrainData: Record<
 		string,
@@ -206,8 +214,6 @@ export default async function img2mcaddon(
 
 	const cropSize = Math.min(resolution, Math.round(frames[0].width / gridSize));
 
-	let pbr = false;
-
 	for (let z = 0; z < depth; z++) {
 		const resizeTo = gridSize * cropSize;
 		const frame: imagescript.Image = (
@@ -216,7 +222,7 @@ export default async function img2mcaddon(
 
 		for (let x = 0; x < gridSize; x++) {
 			for (let y = 0; y < gridSize; y++) {
-				const sliceId = `slice_${x}_${y}_${z}`;
+				const sliceId = `${namespace}_${x}_${y}_${z}`;
 				const xPos = x * cropSize;
 				const yPos = y * cropSize;
 				const slice = frame.clone().crop(xPos, yPos, cropSize, cropSize);
@@ -243,34 +249,34 @@ export default async function img2mcaddon(
 					color: sliceId,
 				};
 
-				try {
-					addon.file(
-						`rp/textures/blocks/${sliceId}_mer.png`,
-						await merTexture[z]
-							.clone()
-							.resize(resizeTo, resizeTo)
-							.crop(xPos, yPos, cropSize, cropSize)
-							.encode(),
-					);
-					textureSet.metalness_emissive_roughness = `${sliceId}_mer`;
-					pbr = true;
-				} catch (err) {
-					console.warn(`Failed to add MER map: ${err}`);
-				}
+				if (pbr) {
+					try {
+						addon.file(
+							`rp/textures/blocks/${sliceId}_mer.png`,
+							await merTexture[z]
+								.clone()
+								.resize(resizeTo, resizeTo)
+								.crop(xPos, yPos, cropSize, cropSize)
+								.encode(),
+						);
+						textureSet.metalness_emissive_roughness = `${sliceId}_mer`;
+					} catch (err) {
+						console.warn(`Failed to add MER map: ${err}`);
+					}
 
-				try {
-					addon.file(
-						`rp/textures/blocks/${sliceId}_normal.png`,
-						await normalTexture[z]
-							.clone()
-							.resize(resizeTo, resizeTo)
-							.crop(xPos, yPos, cropSize, cropSize)
-							.encode(),
-					);
-					textureSet.normal = `${sliceId}_normal`;
-					pbr = true;
-				} catch (err) {
-					console.warn(`Failed to add normal map: ${err}`);
+					try {
+						addon.file(
+							`rp/textures/blocks/${sliceId}_normal.png`,
+							await normalTexture[z]
+								.clone()
+								.resize(resizeTo, resizeTo)
+								.crop(xPos, yPos, cropSize, cropSize)
+								.encode(),
+						);
+						textureSet.normal = `${sliceId}_normal`;
+					} catch (err) {
+						console.warn(`Failed to add normal map: ${err}`);
+					}
 				}
 
 				addon.file(
@@ -285,7 +291,7 @@ export default async function img2mcaddon(
 					),
 				);
 
-				terrainData[`${namespace}_${sliceId}`] = {
+				terrainData[sliceId] = {
 					textures: `textures/blocks/${sliceId}`,
 				};
 
@@ -345,13 +351,12 @@ export default async function img2mcaddon(
 	};
 
 	const mcstructure = await nbt.write(nbt.parse(JSON.stringify(tag)), {
-		// name,
 		endian: "little",
 		compression: null,
 		bedrockLevel: false,
 	});
 
-	addon.file(`bp/structures/${namespace}.mcstructure`, mcstructure);
+	addon.file(`bp/structures/mosaic/${namespace}.mcstructure`, mcstructure);
 
 	const mipLevels =
 		{
