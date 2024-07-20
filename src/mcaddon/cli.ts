@@ -10,9 +10,10 @@ async function createAddon(
 	gridSize = 3,
 	resolution = 16,
 	dest?: string,
-	axis?: Axis
+	axis?: Axis,
+	pbr = false
 ) {
-	const addon = await img2mcaddon(src, gridSize, resolution, axis ?? "z");
+	const addon = await img2mcaddon(src, gridSize, resolution, axis ?? "z", pbr);
 
 	const addonDest =
 		dest ??
@@ -25,7 +26,7 @@ async function createAddon(
 
 if (import.meta.main) {
 	const {
-		values: { src, gridSize, resolution, dest, axis },
+		values: { src, gridSize, resolution, dest, axis, pbr },
 	} = parseArgs({
 		args: process.argv.slice(2),
 		options: {
@@ -51,6 +52,10 @@ if (import.meta.main) {
 				type: "string",
 				multiple: false,
 				default: "z",
+			},
+			pbr: {
+				type: "boolean",
+				default: false,
 			}
 		},
 	});
@@ -60,7 +65,8 @@ if (import.meta.main) {
 		Math.max(1, Number(gridSize)),
 		Math.max(16, Math.min(1024, Number(resolution))),
 		dest,
-		axis as Axis
+		axis as Axis,
+		pbr
 	);
 	process.exit(0);
 }

@@ -134,6 +134,8 @@ function rotateVolume(volume: number[][][], axis: Axis): number[][][] {
  * @param src Image source
  * @param gridSize The target size of the grid structure output. For best results, grid size should be the image width and height divided by the resolution.
  * @param resolution The target resolution of the block texture output
+ * @param axis The axis to rotate the structure on
+ * @param pbr Enable PBR textures
  * @returns Archive data of the .mcaddon
  * @example Split an image into a 3×3 grid with 16x texture output.
  * ```ts
