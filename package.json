@@ -2,18 +2,17 @@
   "type": "module",
   "scripts": {
     "format": "bunx @biomejs/biome format --write ./**/*.{js,ts,json,jsx,tsx,html,css}",
-    "build": "bun build ./app/index.tsx > ./dist/bundle.js"
+    "build": "bun build ./app/index.tsx > ./dist/bundle.js",
+    "serve": "bun run build && bun run ./main.ts"
   },
   "dependencies": {
     "@hono/hono": "npm:@jsr/hono__hono",
     "@sigmasd/qrpng": "npm:@jsr/sigmasd__qrpng",
-    "@std/dotenv": "npm:@jsr/std__dotenv",
     "classix": "^2.1.38",
     "imagescript": "^1.3.0",
     "jszip": "3.10.1",
     "nanoid": "5.0.7",
     "nbtify": "1.90.1",
-    "openai": "^4.52.3",
     "vox-reader": "2.1.2"
   },
   "devDependencies": {

@@ -694,7 +694,6 @@
         "npm:@biomejs/biome@1.8.3",
         "npm:@jsr/hono__hono",
         "npm:@jsr/sigmasd__qrpng",
-        "npm:@jsr/std__dotenv",
         "npm:@types/bun@^1.1.6",
         "npm:@types/node@^20.14.9",
         "npm:classix@^2.1.38",
@@ -702,7 +701,6 @@
         "npm:jszip@3.10.1",
         "npm:nanoid@5.0.7",
         "npm:nbtify@1.90.1",
-        "npm:openai@^4.52.3",
         "npm:vox-reader@2.1.2"
       ]
     }

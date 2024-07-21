@@ -29,10 +29,10 @@ function createBlock({
 	z: number;
 }): string {
 	const sliceId = {
-		front: `slice_${x}_${y}_${z}`,
-		back: `slice_${gridSize - x - 1}_${y}_${z}`,
-		top: `slice_${x}_${gridSize - y - 1}_${z}`,
-		bottom: `slice_${x}_${y}_${z}`,
+		front: `${namespace}_${x}_${y}_${z}`,
+		back: `${namespace}_${gridSize - x - 1}_${y}_${z}`,
+		top: `${namespace}_${x}_${gridSize - y - 1}_${z}`,
+		bottom: `${namespace}_${x}_${y}_${z}`,
 	};
 	const data = {
 		format_version: BLOCK_FORMAT_VERSION,
