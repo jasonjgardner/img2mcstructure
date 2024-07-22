@@ -8,6 +8,7 @@ import { BLOCK_VERSION, BLOCK_FORMAT_VERSION } from "../_constants.ts";
 import { rgb2hex } from "../_lib.ts";
 import * as nbt from "nbtify";
 import { nanoid } from "nanoid";
+import { series2atlas, dir2series } from "../atlas.ts";
 
 function getAverageColor(image: imagescript.Image): string {
 	return rgb2hex(imagescript.Image.colorToRGB(image.averageColor()) as RGB);
@@ -129,93 +130,35 @@ function rotateVolume(volume: number[][][], axis: Axis): number[][][] {
 	return rotatedVolume;
 }
 
-/**
- * Convert an image to a mosaic using custom Minecraft blocks.
- * @param src Image source
- * @param gridSize The target size of the grid structure output. For best results, grid size should be the image width and height divided by the resolution.
- * @param resolution The target resolution of the block texture output
- * @param axis The axis to rotate the structure on
- * @param pbr Enable PBR textures
- * @returns Archive data of the .mcaddon
- * @example Split an image into a 3×3 grid with 16x texture output.
- * ```ts
- * const file = await img2mcaddon("path/to/image.png", 3, 16);
- * await writeFile("output.mcaddon", file);
- * ```
- */
-export default async function img2mcaddon(
-	src: string | URL,
-	gridSize: number,
-	resolution: number,
-	axis: Axis = "z",
-	pbr = false,
-): Promise<Uint8Array> {
-	const jobId = nanoid(7);
-	const addon = new JSZip();
-
-	const colorSrc = src instanceof URL ? src.href : src;
-
-	const blocksData: Record<
-		string,
-		{
-			sound: string;
-			isotropic: boolean;
-		}
-	> = {};
-
-	const frames = await decode(colorSrc, false);
-
-	// Convert slices to blocks, textures, and construct the structure, then assemble the addon
-	const baseName = basename(colorSrc, extname(colorSrc));
-
-	let merTexture: DecodedFrames = [
-		new imagescript.Image(gridSize * resolution, gridSize * resolution).fill(
-			imagescript.Image.rgbToColor(0, 0, 255),
-		),
-	];
-	let normalTexture: DecodedFrames = [
-		new imagescript.Image(gridSize * resolution, gridSize * resolution).fill(
-			imagescript.Image.rgbToColor(127, 127, 255),
-		),
-	];
-
-	try {
-		const merSrc = `${colorSrc.replace(/\.[^.]+$/gi, "_mer.png")}`;
-		merTexture = await decode(merSrc, false);
-	} catch (err) {
-		console.warn(`Failed to decode MER map: ${err}`);
-	}
-
-	try {
-		normalTexture = await decode(
-			`${colorSrc.replace(/\.[^.]+$/gi, "_normal.png")}`,
-			false,
-		);
-	} catch (err) {
-		console.warn(`Failed to decode normal map: ${err}`);
-	}
-
-	const namespace = baseName.replace(/\W|\.\@\$\%/g, "_").substring(0, 16);
-
-	const terrainData: Record<
-		string,
-		{
-			textures: string;
-		}
-	> = {};
-
-	const blockPalette: StructurePalette = [];
-
-	const depth = frames.length;
-
-	const layer = Array.from({ length: gridSize * gridSize * depth }, () => -1);
-	const waterLayer = layer.slice();
-	const volume: number[][][] = Array.from({ length: depth }, () =>
-		Array.from({ length: gridSize }, () => Array(gridSize).fill(-1)),
-	);
-
-	const cropSize = Math.min(resolution, Math.round(frames[0].width / gridSize));
-
+async function iterateDepth({
+	namespace,
+	addon,
+	terrainData,
+	blocksData,
+	blockPalette,
+	volume,
+	merTexture,
+	normalTexture,
+	frames,
+	gridSize,
+	cropSize,
+	depth,
+	pbr,
+}: {
+	namespace: string;
+	addon: JSZip;
+	terrainData: Record<string, { textures: string }>;
+	blocksData: Record<string, { sound: string; isotropic: boolean }>;
+	blockPalette: StructurePalette;
+	volume: number[][][];
+	merTexture: DecodedFrames;
+	normalTexture: DecodedFrames;
+	frames: DecodedFrames;
+	gridSize: number;
+	cropSize: number;
+	depth: number;
+	pbr: boolean;
+}) {
 	for (let z = 0; z < depth; z++) {
 		const resizeTo = gridSize * cropSize;
 		const frame: imagescript.Image = (
@@ -314,15 +257,169 @@ export default async function img2mcaddon(
 		}
 	}
 
-	const rotatedVolume = rotateVolume(volume, axis);
-	const size: [number, number, number] =
-		axis === "y" ? [gridSize, depth, gridSize] : [gridSize, gridSize, depth];
+	addon.file(
+		"rp/blocks.json",
+		JSON.stringify(
+			{
+				format_version: [1, 0, 0],
+				...blocksData,
+			},
+			null,
+			2,
+		),
+	);
+}
 
-	const flatVolume = rotatedVolume.flat(2);
+async function createFlipbook({
+	namespace,
+	addon,
+	terrainData,
+	blocksData,
+	blockPalette,
+	volume,
+	merTexture,
+	normalTexture,
+	frames,
+	gridSize,
+	cropSize,
+	depth,
+	pbr,
+}: {
+	namespace: string;
+	addon: JSZip;
+	terrainData: Record<string, { textures: string }>;
+	blocksData: Record<string, { sound: string; isotropic: boolean }>;
+	blockPalette: StructurePalette;
+	volume: number[][][];
+	merTexture: DecodedFrames;
+	normalTexture: DecodedFrames;
+	frames: DecodedFrames;
+	gridSize: number;
+	cropSize: number;
+	depth: number;
+	pbr: boolean;
+}) {
+	// Each frame is added to the flipbook atlas
+	const flipbookTextures: Array<{
+		atlas_tile: string;
+		flipbook_texture: string;
+		ticks_per_frame: number;
+	}> = [];
 
-	if (flatVolume.length !== waterLayer.length) {
-		throw new Error("Layer lengths do not match");
+	const tickSpeed = 10;
+
+	for (let x = 0; x < gridSize; x++) {
+		for (let y = 0; y < gridSize; y++) {
+			const sliceId = `${namespace}_${x}_${y}_1`;
+
+			const slice = await series2atlas(
+				frames.map((frame: imagescript.Image) =>
+					frame.clone().crop(x * cropSize, y * cropSize, cropSize, cropSize),
+				),
+			);
+
+			addon.file(
+				`bp/blocks/${sliceId}.block.json`,
+				createBlock({
+					namespace,
+					image: slice,
+					gridSize,
+					x,
+					y,
+					z: 1,
+				}),
+			);
+
+			addon.file(`rp/textures/blocks/${sliceId}.png`, await slice.encode());
+
+			const textureSet: {
+				color: string;
+				metalness_emissive_roughness?: string;
+				normal?: string;
+			} = {
+				color: sliceId,
+			};
+
+			if (pbr) {
+				try {
+					addon.file(
+						`rp/textures/blocks/${sliceId}_mer.png`,
+						await (
+							await series2atlas(
+								merTexture.map((frame: imagescript.Image) =>
+									frame
+										.clone()
+										.crop(x * cropSize, y * cropSize, cropSize, cropSize),
+								),
+							)
+						).encode(),
+					);
+					textureSet.metalness_emissive_roughness = `${sliceId}_mer`;
+				} catch (err) {
+					console.warn(`Failed to add MER map: ${err}`);
+				}
+
+				try {
+					addon.file(
+						`rp/textures/blocks/${sliceId}_normal.png`,
+						await (
+							await series2atlas(
+								normalTexture.map((frame: imagescript.Image) =>
+									frame
+										.clone()
+										.crop(x * cropSize, y * cropSize, cropSize, cropSize),
+								),
+							)
+						).encode(),
+					);
+					textureSet.normal = `${sliceId}_normal`;
+				} catch (err) {
+					console.warn(`Failed to add normal map: ${err}`);
+				}
+			}
+
+			addon.file(
+				`rp/textures/blocks/${sliceId}.texture_set.json`,
+				JSON.stringify(
+					{
+						format_version: "1.16.100",
+						"minecraft:texture_set": textureSet,
+					},
+					null,
+					2,
+				),
+			);
+
+			terrainData[`${namespace}_${sliceId}`] = {
+				textures: `textures/blocks/${sliceId}`,
+			};
+
+			const blockIdx =
+				blockPalette.push({
+					name: `${namespace}:${sliceId}`,
+					states: {},
+					version: BLOCK_VERSION,
+				}) - 1;
+
+			volume[0][x][y] = blockIdx;
+
+			blocksData[sliceId] = {
+				sound: "stone",
+				isotropic: false,
+			};
+
+			flipbookTextures.push({
+				atlas_tile: `${namespace}_${sliceId}`,
+				flipbook_texture: `textures/blocks/${sliceId}`,
+				ticks_per_frame: tickSpeed,
+			});
+		}
 	}
+
+	addon.file(
+		"rp/textures/flipbook_textures.json",
+		JSON.stringify(flipbookTextures, null, 2),
+	);
 
 	addon.file(
 		"rp/blocks.json",
@@ -335,6 +432,159 @@ export default async function img2mcaddon(
 			2,
 		),
 	);
+}
+
+/**
+ * Convert an image to a mosaic using custom Minecraft blocks.
+ * @param src Image source
+ * @param gridSize The target size of the grid structure output. For best results, grid size should be the image width and height divided by the resolution.
+ * @param resolution The target resolution of the block texture output
+ * @param axis The axis to rotate the structure on
+ * @param pbr Enable PBR textures
+ * @returns Archive data of the .mcaddon
+ * @example Split an image into a 3×3 grid with 16x texture output.
+ * ```ts
+ * const file = await img2mcaddon("path/to/image.png", 3, 16);
+ * await writeFile("output.mcaddon", file);
+ * ```
+ */
+export default async function img2mcaddon(
+	src: string | URL,
+	gridSize: number,
+	resolution: number,
+	axis: Axis = "z",
+	pbr = false,
+	frames = 1,
+): Promise<Uint8Array> {
+	const jobId = nanoid(7);
+	const addon = new JSZip();
+
+	const colorSrc = src instanceof URL ? src.href : src;
+
+	const blocksData: Record<
+		string,
+		{
+			sound: string;
+			isotropic: boolean;
+		}
+	> = {};
+
+	const decodedFrames =
+		frames > 1 ? await dir2series(colorSrc) : await decode(colorSrc, false);
+
+	// Convert slices to blocks, textures, and construct the structure, then assemble the addon
+	const baseName = basename(colorSrc, extname(colorSrc));
+
+	let merTexture: DecodedFrames = [
+		new imagescript.Image(gridSize * resolution, gridSize * resolution).fill(
+			imagescript.Image.rgbToColor(0, 0, 255),
+		),
+	];
+	let normalTexture: DecodedFrames = [
+		new imagescript.Image(gridSize * resolution, gridSize * resolution).fill(
+			imagescript.Image.rgbToColor(127, 127, 255),
+		),
+	];
+
+	try {
+		if (frames > 1) {
+			const merSrc = `${colorSrc}_mer`;
+			merTexture = await dir2series(merSrc);
+		} else {
+			const merSrc = `${colorSrc.replace(/\.[^.]+$/gi, "_mer.png")}`;
+			merTexture = await decode(merSrc, false);
+		}
+	} catch (err) {
+		console.warn(`Failed to decode MER map: ${err}`);
+	}
+
+	try {
+		if (frames > 1) {
+			const normalSrc = `${colorSrc}_normal`;
+			normalTexture = await dir2series(normalSrc);
+		} else {
+			normalTexture = await decode(
+				`${colorSrc.replace(/\.[^.]+$/gi, "_normal.png")}`,
+				false,
+			);
+		}
+	} catch (err) {
+		console.warn(`Failed to decode normal map: ${err}`);
+	}
+
+	const namespace = baseName.replace(/\W|\.\@\$\%/g, "_").substring(0, 16);
+
+	const terrainData: Record<
+		string,
+		{
+			textures: string;
+		}
+	> = {};
+
+	const blockPalette: StructurePalette = [];
+
+	const depth = decodedFrames.length;
+
+	const layer = Array.from({ length: gridSize * gridSize * depth }, () => -1);
+	const volume: number[][][] = Array.from({ length: depth }, () =>
+		Array.from({ length: gridSize }, () => Array(gridSize).fill(-1)),
+	);
+
+	const cropSize = Math.min(
+		resolution,
+		Math.round(decodedFrames[0].width / gridSize),
+	);
+
+	let flipbookVolume: number[][][] | undefined;
+
+	if (frames > 1) {
+		flipbookVolume = Array.from({ length: 1 }, () =>
+			Array.from({ length: gridSize }, () => Array(gridSize).fill(-1)),
+		);
+
+		await createFlipbook({
+			namespace,
+			addon,
+			terrainData,
+			blocksData,
+			blockPalette,
+			volume: flipbookVolume,
+			merTexture,
+			normalTexture,
+			frames: decodedFrames,
+			gridSize,
+			cropSize,
+			depth,
+			pbr,
+		});
+	} else {
+		await iterateDepth({
+			namespace,
+			addon,
+			terrainData,
+			blocksData,
+			blockPalette,
+			volume,
+			merTexture,
+			normalTexture,
+			frames: decodedFrames,
+			gridSize,
+			cropSize,
+			depth,
+			pbr,
+		});
+	}
+
+	const rotatedVolume = rotateVolume(flipbookVolume ?? volume, axis);
+	const size: [number, number, number] =
+		axis === "y" ? [gridSize, depth, gridSize] : [gridSize, gridSize, depth];
+
+	const flatVolume = rotatedVolume.flat(2);
+	const waterLayer = Array.from({ length: gridSize * gridSize }, () => -1);
+
+	if (flatVolume.length !== waterLayer.length) {
+		throw new Error("Layer lengths do not match");
+	}
 
 	const tag: IMcStructure = {
 		format_version: 1,
@@ -383,7 +633,7 @@ export default async function img2mcaddon(
 
 	addon.file("rp/textures/terrain_texture.json", terrainTextureJson);
 
-	const icon = frames[0].clone().resize(150, 150).encode();
+	const icon = decodedFrames[0].clone().resize(150, 150).encode();
 	addon.file("rp/pack_icon.png", icon);
 	addon.file("bp/pack_icon.png", icon);
 
