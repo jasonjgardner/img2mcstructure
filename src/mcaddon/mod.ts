@@ -21,6 +21,7 @@ function createBlock({
 	x,
 	y,
 	z = 1,
+	axis = "z",
 }: {
 	namespace: string;
 	image: imagescript.Image;
@@ -28,6 +29,7 @@ function createBlock({
 	x: number;
 	y: number;
 	z: number;
+	axis?: Axis;
 }): string {
 	const sliceId = {
 		front: `${namespace}_${x}_${y}_${z}`,
@@ -35,6 +37,14 @@ function createBlock({
 		top: `${namespace}_${x}_${gridSize - y - 1}_${z}`,
 		bottom: `${namespace}_${x}_${y}_${z}`,
 	};
+
+	if (axis === "y") {
+		sliceId.front = `${namespace}_${x}_${z}_${gridSize - y - 1}`;
+		sliceId.back = `${namespace}_${gridSize - x - 1}_${z}_${gridSize - y - 1}`;
+		sliceId.top = `${namespace}_${x}_${z}_${y}`;
+		sliceId.bottom = `${namespace}_${x}_${z}_${gridSize - y - 1}`;
+	}
+
 	const data = {
 		format_version: BLOCK_FORMAT_VERSION,
 		"minecraft:block": {
@@ -283,6 +293,7 @@ async function createFlipbook({
 	gridSize,
 	cropSize,
 	pbr,
+	axis
 }: {
 	namespace: string;
 	addon: JSZip;
@@ -296,6 +307,7 @@ async function createFlipbook({
 	gridSize: number;
 	cropSize: number;
 	pbr: boolean;
+	axis: Axis;
 }) {
 	// Each frame is added to the flipbook atlas
 	const flipbookTextures: Array<{
@@ -325,6 +337,7 @@ async function createFlipbook({
 					x,
 					y,
 					z: 1,
+					axis
 				}),
 			);
 
@@ -552,6 +565,7 @@ export default async function img2mcaddon(
 			gridSize,
 			cropSize,
 			pbr,
+			axis
 		});
 	} else {
 		await iterateDepth({
@@ -576,7 +590,7 @@ export default async function img2mcaddon(
 		axis === "y" ? [gridSize, depth, gridSize] : [gridSize, gridSize, depth];
 
 	const flatVolume = rotatedVolume.flat(2);
-	const waterLayer = Array.from({ length: gridSize * gridSize }, () => -1);
+	const waterLayer = Array.from({ length: flatVolume.length }, () => -1);
 
 	if (flatVolume.length !== waterLayer.length) {
 		throw new Error("Layer lengths do not match");
@@ -599,6 +613,7 @@ export default async function img2mcaddon(
 	};
 
 	const mcstructure = await nbt.write(nbt.parse(JSON.stringify(tag)), {
+		name: `${namespace}_${jobId}`,
 		endian: "little",
 		compression: null,
 		bedrockLevel: false,
