@@ -30,10 +30,10 @@ function createBlock({
 	z: number;
 }): string {
 	const sliceId = {
-		front: `slice_${x}_${y}_${z}`,
-		back: `slice_${gridSize - x - 1}_${y}_${z}`,
-		top: `slice_${x}_${gridSize - y - 1}_${z}`,
-		bottom: `slice_${x}_${y}_${z}`,
+		front: `${namespace}_${x}_${y}_${z}`,
+		back: `${namespace}_${gridSize - x - 1}_${y}_${z}`,
+		top: `${namespace}_${x}_${gridSize - y - 1}_${z}`,
+		bottom: `${namespace}_${x}_${y}_${z}`,
 	};
 	const data = {
 		format_version: BLOCK_FORMAT_VERSION,
@@ -282,7 +282,6 @@ async function createFlipbook({
 	frames,
 	gridSize,
 	cropSize,
-	depth,
 	pbr,
 }: {
 	namespace: string;
@@ -296,7 +295,6 @@ async function createFlipbook({
 	frames: DecodedFrames;
 	gridSize: number;
 	cropSize: number;
-	depth: number;
 	pbr: boolean;
 }) {
 	// Each frame is added to the flipbook atlas
@@ -523,9 +521,8 @@ export default async function img2mcaddon(
 
 	const blockPalette: StructurePalette = [];
 
-	const depth = decodedFrames.length;
+	const depth = frames > 1 ? 1 : decodedFrames.length;
 
-	const layer = Array.from({ length: gridSize * gridSize * depth }, () => -1);
 	const volume: number[][][] = Array.from({ length: depth }, () =>
 		Array.from({ length: gridSize }, () => Array(gridSize).fill(-1)),
 	);
@@ -554,7 +551,6 @@ export default async function img2mcaddon(
 			frames: decodedFrames,
 			gridSize,
 			cropSize,
-			depth,
 			pbr,
 		});
 	} else {
