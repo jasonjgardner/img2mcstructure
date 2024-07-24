@@ -2,7 +2,8 @@
   "type": "module",
   "scripts": {
     "format": "bunx @biomejs/biome format --write ./**/*.{js,ts,json,jsx,tsx,html,css}",
-    "build": "bun build ./app/index.tsx > ./dist/bundle.js"
+    "build": "bun build ./app/index.tsx > ./dist/bundle.js",
+    "bump": "deno run -A jsr:@mys/bump@1"
   },
   "dependencies": {
     "@hono/hono": "npm:@jsr/hono__hono",

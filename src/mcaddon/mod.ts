@@ -293,7 +293,7 @@ async function createFlipbook({
 	gridSize,
 	cropSize,
 	pbr,
-	axis
+	axis,
 }: {
 	namespace: string;
 	addon: JSZip;
@@ -337,7 +337,7 @@ async function createFlipbook({
 					x,
 					y,
 					z: 1,
-					axis
+					axis,
 				}),
 			);
 
@@ -452,12 +452,14 @@ async function createFlipbook({
  * @param resolution The target resolution of the block texture output
  * @param axis The axis to rotate the structure on
  * @param pbr Enable PBR textures
+ * @param frames Number of frames to use for the flipbook. If greater than 1, the image will be converted to a flipbook. Otherwise, multiple frames are used for the depth of the structure.
  * @returns Archive data of the .mcaddon
  * @example Split an image into a 3×3 grid with 16x texture output.
  * ```ts
  * const file = await img2mcaddon("path/to/image.png", 3, 16);
  * await writeFile("output.mcaddon", file);
  * ```
+ * @todo Flipbook features will be separated into a different function
  */
 export default async function img2mcaddon(
 	src: string | URL,
@@ -565,7 +567,7 @@ export default async function img2mcaddon(
 			gridSize,
 			cropSize,
 			pbr,
-			axis
+			axis,
 		});
 	} else {
 		await iterateDepth({

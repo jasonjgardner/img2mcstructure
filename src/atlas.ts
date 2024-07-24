@@ -2,6 +2,11 @@ import * as imagescript from "imagescript";
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 
+/**
+ * Create an image series from a list of image sources
+ * @param srcs Image sources
+ * @returns Image series
+ */
 export async function createImageSeries(
 	srcs: string[],
 ): Promise<imagescript.Image[]> {
@@ -22,6 +27,11 @@ export async function createImageSeries(
 	return images;
 }
 
+/**
+ * Use the contents of a directory as an image series
+ * @param dir Directory which contains the image series
+ * @returns Image series
+ */
 export async function dir2series(dir: string): Promise<imagescript.Image[]> {
 	const files = await readdir(dir);
 	const images = await createImageSeries(files.map((file) => join(dir, file)));
@@ -29,6 +39,11 @@ export async function dir2series(dir: string): Promise<imagescript.Image[]> {
 	return images;
 }
 
+/**
+ * Convert an image series to a flipbook texture atlas
+ * @param images Image sequence
+ * @returns Texture atlas of the image sequence
+ */
 export async function series2atlas(
     images: imagescript.Image[],
 ): Promise<imagescript.Image> {
