@@ -173,6 +173,7 @@ export async function createMcStructure(
   );
 
   return await nbt.write(nbt.parse(structure), {
+    // @ts-expect-error - name is not in the type definition
     name,
     endian: "little",
     compression: null,

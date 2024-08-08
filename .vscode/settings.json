@@ -5,7 +5,11 @@
   "bun.debugTerminal.enabled": true,
   "bun.debugTerminal.stopOnEntry": false,
   "cSpell.words": [
+    "flipbook",
     "imagescript",
-    "mcstructure"
+    "mcaddon",
+    "mcstructure",
+    "metalness",
+    "nbtify"
   ]
 }
