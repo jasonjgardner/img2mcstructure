@@ -321,8 +321,10 @@ async function createFlipbook({
     for (let y = 0; y < gridSize; y++) {
       const sliceId = `${namespace}_${x}_${y}_1`;
 
+      const flatFrames: imagescript.Image[] = frames.flat();
+
       const slice = await series2atlas(
-        frames.flatMap((frame: imagescript.Image) =>
+        flatFrames.map((frame) =>
           frame.clone().crop(x * cropSize, y * cropSize, cropSize, cropSize)
         ),
       );
@@ -352,11 +354,12 @@ async function createFlipbook({
 
       if (pbr) {
         try {
+          const flatMerFrames: imagescript.Image[] = merTexture.flat();
           addon.file(
             `rp/textures/blocks/${sliceId}_mer.png`,
             await (
               await series2atlas(
-                merTexture.flatMap((frame: imagescript.Image) =>
+                flatMerFrames.map((frame: imagescript.Image) =>
                   frame
                     .clone()
                     .crop(x * cropSize, y * cropSize, cropSize, cropSize)
@@ -370,11 +373,12 @@ async function createFlipbook({
         }
 
         try {
+          const flatNormalFrames: imagescript.Image[] = normalTexture.flat();
           addon.file(
             `rp/textures/blocks/${sliceId}_normal.png`,
             await (
               await series2atlas(
-                normalTexture.flatMap((frame: imagescript.Image) =>
+                flatNormalFrames.map((frame: imagescript.Image) =>
                   frame
                     .clone()
                     .crop(x * cropSize, y * cropSize, cropSize, cropSize)
@@ -617,7 +621,7 @@ export default async function img2mcaddon(
   };
 
   const mcstructure = await nbt.write(nbt.parse(JSON.stringify(tag)), {
-	// @ts-expect-error - name is not in the type definition
+    // @ts-expect-error - name is not in the type definition
     name: `${namespace}_${jobId}`,
     endian: "little",
     compression: null,
