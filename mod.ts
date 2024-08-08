@@ -4,4 +4,4 @@ export { default as img2nbt } from "./src/nbt/mod.ts";
 export { default as vox2mcstructure, vox2gif } from "./src/vox/mod.ts";
 export { default as img2mcaddon } from "./src/mcaddon/mod.ts";
 export { default as img2mcfunction } from "./src/mcfunction/mod.ts";
-export { series2atlas, createImageSeries, dir2series } from "./src/atlas.ts";
+export { createImageSeries, dir2series, series2atlas } from "./src/atlas.ts";

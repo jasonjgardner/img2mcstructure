@@ -1,7 +1,12 @@
 import type { Axis, IMcStructure } from "./types.ts";
 
 function rotateOverY(structure: IMcStructure): IMcStructure {
-  const { size, structure: { block_indices: [layer] } } = structure;
+  const {
+    size,
+    structure: {
+      block_indices: [layer],
+    },
+  } = structure;
   const [width, height, depth] = size;
 
   const newLayer = Array.from({ length: width * height * depth }, () => -1);
@@ -9,13 +14,10 @@ function rotateOverY(structure: IMcStructure): IMcStructure {
   for (let z = 0; z < depth; z++) {
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
-        const key = (z * width * height) + (y * width) + (width - x - 1);
+        const key = z * width * height + y * width + (width - x - 1);
 
-        newLayer[key] = layer[
-          (z * width * height) + ((height - y - 1) *
-            width) +
-          x
-        ];
+        newLayer[key] =
+          layer[z * width * height + (height - y - 1) * width + x];
       }
     }
   }
@@ -28,7 +30,12 @@ function rotateOverY(structure: IMcStructure): IMcStructure {
 }
 
 function rotateOverZ(structure: IMcStructure): IMcStructure {
-  const { size, structure: { block_indices: [layer] } } = structure;
+  const {
+    size,
+    structure: {
+      block_indices: [layer],
+    },
+  } = structure;
   const [width, height, depth] = size;
 
   const newLayer = Array.from({ length: width * height * depth }, () => -1);
@@ -36,12 +43,9 @@ function rotateOverZ(structure: IMcStructure): IMcStructure {
   for (let z = 0; z < depth; z++) {
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
-        const key = (z * width * height) + (y * width) + (width - x - 1);
+        const key = z * width * height + y * width + (width - x - 1);
 
-        newLayer[key] = layer[
-          ((depth - z - 1) * width * height) +
-          (y * width) + x
-        ];
+        newLayer[key] = layer[(depth - z - 1) * width * height + y * width + x];
       }
     }
   }
@@ -54,7 +58,12 @@ function rotateOverZ(structure: IMcStructure): IMcStructure {
 }
 
 function rotateOverX(structure: IMcStructure): IMcStructure {
-  const { size, structure: { block_indices: [layer] } } = structure;
+  const {
+    size,
+    structure: {
+      block_indices: [layer],
+    },
+  } = structure;
   const [width, height, depth] = size;
 
   const newLayer = Array.from({ length: width * height * depth }, () => -1);
@@ -62,9 +71,9 @@ function rotateOverX(structure: IMcStructure): IMcStructure {
   for (let z = 0; z < depth; z++) {
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
-        const key = (z * width * height) + (y * width) + (width - x - 1);
+        const key = z * width * height + y * width + (width - x - 1);
 
-        newLayer[key] = layer[(z * width * height) + (y * width) + x];
+        newLayer[key] = layer[z * width * height + y * width + x];
       }
     }
   }

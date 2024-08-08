@@ -6,14 +6,17 @@ import db from "../db/minecraft.json" with { type: "json" };
 import { writeFile } from "node:fs/promises";
 import process from "node:process";
 
-const palette = createPalette(Object.fromEntries(
-  Object.keys(db).filter((id) =>
-    !id.includes("stained_glass") && (
-      id.includes("black") || id.includes("white") ||
-      id.includes("gray")
-    )
-  ).map((id) => [id, db[id as keyof typeof db]]),
-));
+const palette = createPalette(
+  Object.fromEntries(
+    Object.keys(db)
+      .filter(
+        (id) =>
+          !id.includes("stained_glass") &&
+          (id.includes("black") || id.includes("white") || id.includes("gray")),
+      )
+      .map((id) => [id, db[id as keyof typeof db]]),
+  ),
+);
 
 const qr = qrPng(
   new TextEncoder().encode(

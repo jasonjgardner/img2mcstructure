@@ -5,11 +5,13 @@ import db from "../db/rainbow.json" with { type: "json" };
 import { writeFile } from "node:fs/promises";
 import process from "node:process";
 
-const palette = createPalette(Object.fromEntries(
-  Object.keys(db).filter((id) => id.includes("lit") || id.includes("lamp")).map(
-    (id) => [id, db[id as keyof typeof db]],
+const palette = createPalette(
+  Object.fromEntries(
+    Object.keys(db)
+      .filter((id) => id.includes("lit") || id.includes("lamp"))
+      .map((id) => [id, db[id as keyof typeof db]]),
   ),
-));
+);
 
 const structureId = nanoid(6);
 

@@ -17,12 +17,14 @@ interface VoxData {
   };
   xyzi: {
     numVoxels: number;
-    values: [{
-      x: number;
-      y: number;
-      z: number;
-      i: number;
-    }];
+    values: [
+      {
+        x: number;
+        y: number;
+        z: number;
+        i: number;
+      },
+    ];
   };
   rgba: {
     values: [{ r: number; g: number; b: number; a: number }];
@@ -79,8 +81,9 @@ function findBlock(
     [c?.r ?? 0, c?.g ?? 0, c?.b ?? 0, c?.a ?? 0],
     palette,
   );
-  const blockIdx = blockPalette.findIndex(({ name, states }) =>
-    name === nearest.id && compareStates(nearest.states, states)
+  const blockIdx = blockPalette.findIndex(
+    ({ name, states }) =>
+      name === nearest.id && compareStates(nearest.states, states),
   );
 
   return [nearest, blockIdx];
@@ -105,11 +108,7 @@ export function constructDecoded(
   /**
    * Structure size (X, Y, Z)
    */
-  const size: [number, number, number] = [
-    vox.size.z,
-    vox.size.y,
-    vox.size.x,
-  ];
+  const size: [number, number, number] = [vox.size.z, vox.size.y, vox.size.x];
 
   const [width, height, depth] = size;
 
@@ -131,13 +130,11 @@ export function constructDecoded(
       findBlock(vox.rgba.values[i], palette, blockPalette);
 
     if (blockIdx === -1) {
-      blockIdx = blockPalette.push(
-        {
-          version: nearest.version ?? BLOCK_VERSION,
-          name: nearest.id ?? DEFAULT_BLOCK,
-          states: nearest.states ?? {},
-        },
-      ) - 1;
+      blockIdx = blockPalette.push({
+        version: nearest.version ?? BLOCK_VERSION,
+        name: nearest.id ?? DEFAULT_BLOCK,
+        states: nearest.states ?? {},
+      }) - 1;
 
       memo.set(i, [nearest, blockIdx]);
     }

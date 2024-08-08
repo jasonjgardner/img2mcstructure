@@ -8,9 +8,7 @@ import { hex2rgb } from "./_lib.ts";
  * @param db Block ID/Color database.
  * @returns Array of blocks.
  */
-export default function createPalette(
-  db: PaletteSource,
-): IBlock[] {
+export default function createPalette(db: PaletteSource): IBlock[] {
   const blockPalette: IBlock[] = [];
 
   for (const idx in db) {
@@ -28,8 +26,7 @@ export default function createPalette(
     blockPalette.push({
       id,
       hexColor,
-      color: color ??
-        (hexColor ? hex2rgb(hexColor) : [0, 0, 0, 0] as RGBA),
+      color: color ?? (hexColor ? hex2rgb(hexColor) : ([0, 0, 0, 0] as RGBA)),
       states,
       version,
     });

@@ -1,16 +1,24 @@
 {
   "name": "@jjg/img2mcstructure",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "exports": "./mod.ts",
-  "tasks": {
-    "build:tailwind": "tailwindcss -i ./style.css -o ./static/style.css --minify",
-    "build:packup": "packup build ./public/index.html",
-    "dev:frontend": "packup serve ./public/index.html",
-    "dev:backend": "deno run -A ./main.ts",
-    "dev:tailwind": "tailwindcss -i ./style.css -o ./static/style.css --watch",
-    "ci:deploy": "deno fmt && deno task build:tailwind && deno task build:packup",
-    "dev": "deno task ci:deploy && deno task dev:backend",
-    "demo:bds": "deno run -A ./bds/_pack.ts && deno run -A ./bds/_bds.ts"
+  "fmt": {
+    "include": [
+      "./app",
+      "./src",
+      "./*.ts",
+      "./*.tsx",
+      "./example",
+      "./db"
+    ],
+    "exclude": [
+      "./static",
+      "./dist",
+      "./build",
+      "./cache",
+      "./node_modules",
+      "./tests"
+    ]
   },
   "compilerOptions": {
     "lib": [

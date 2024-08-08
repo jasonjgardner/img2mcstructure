@@ -1,6 +1,6 @@
 import type { Axis, PaletteSource } from "../types.ts";
 import { basename, extname, join } from "node:path";
-import { watch, writeFile} from "node:fs/promises";
+import { watch, writeFile } from "node:fs/promises";
 import process from "node:process";
 import { parseArgs } from "node:util";
 import img2mcstructure, { createPalette } from "../mcstructure/mod.ts";
@@ -19,20 +19,15 @@ export default async function main(
     `${basename(src, extname(src))}_${axis}_${Date.now()}.mcstructure`,
   );
 
-  await writeFile(
-    structureDest,
-    await img2mcstructure(
-      src,
-      palette,
-      axis,
-    ),
-  );
+  await writeFile(structureDest, await img2mcstructure(src, palette, axis));
 
   console.log(`Created ${structureDest}`);
 }
 
 if (import.meta.main) {
-  const { values: { axis, img, db, watch: watchFile, dest } } = parseArgs({
+  const {
+    values: { axis, img, db, watch: watchFile, dest },
+  } = parseArgs({
     args: process.argv.slice(2),
     options: {
       axis: {
@@ -79,12 +74,7 @@ if (import.meta.main) {
     process.exit(0);
   }
 
-  await main(
-    img,
-    await parseDbInput(db),
-    (axis ?? "x") as Axis,
-    dest,
-  );
+  await main(img, await parseDbInput(db), (axis ?? "x") as Axis, dest);
 
   process.exit(0);
 }

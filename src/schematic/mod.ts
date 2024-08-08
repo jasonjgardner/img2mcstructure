@@ -37,10 +37,7 @@ export interface ISchematicTag {
  * @param palette Block palette
  * @returns Nearest, masked, or default block
  */
-function convertBlock(
-  c: number,
-  palette: IBlock[],
-): PaletteBlock {
+function convertBlock(c: number, palette: IBlock[]): PaletteBlock {
   const [r, g, b, a] = imagescript.Image.colorToRGBA(c);
 
   if (a < 128) {
@@ -83,10 +80,7 @@ export function constructDecoded(
 
   const [width, height, depth] = size;
 
-  const memo = new Map<
-    number,
-    [PaletteBlock, number]
-  >();
+  const memo = new Map<number, [PaletteBlock, number]>();
 
   /**
    * Block indices primary layer
