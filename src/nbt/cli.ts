@@ -20,20 +20,15 @@ export default async function main(
     `${basename(src, extname(src))}_${axis}_${Date.now()}.nbt`,
   );
 
-  await writeFile(
-    structureDest,
-    await img2nbt(
-      src,
-      palette,
-      axis,
-    ),
-  );
+  await writeFile(structureDest, await img2nbt(src, palette, axis));
 
   console.log(`Created ${structureDest}`);
 }
 
 if (import.meta.main) {
-  const { values: { axis, img, db, watch: watchFile, dest } } = parseArgs({
+  const {
+    values: { axis, img, db, watch: watchFile, dest },
+  } = parseArgs({
     args: process.argv.slice(2),
     options: {
       axis: {
@@ -80,12 +75,7 @@ if (import.meta.main) {
     process.exit(0);
   }
 
-  await main(
-    img,
-    await parseDbInput(db),
-    (axis ?? "x") as Axis,
-    dest,
-  );
+  await main(img, await parseDbInput(db), (axis ?? "x") as Axis, dest);
 
   process.exit(0);
 }

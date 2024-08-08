@@ -31,11 +31,7 @@ export default async function main(
 
   const imageUrl: string = response.data[0].url ?? "";
 
-  return await img2mcstructure(
-    imageUrl,
-    createPalette(db),
-    axis,
-  );
+  return await img2mcstructure(imageUrl, createPalette(db), axis);
 }
 
 if (import.meta.main) {

@@ -33,7 +33,7 @@ export function DropImage({ onChange }: { onChange: (file: File) => void }) {
 
   const className = cx(
     "border-dashed border-2 border-gray-500 dark:border-gray-400 rounded-md flex flex-grow items-center justify-center cursor-pointer h-full min-h-40",
-    dragging && "border-blue-500"
+    dragging && "border-blue-500",
   );
 
   return (
@@ -129,15 +129,17 @@ export function SelectPalette({
         onChange={({ target }) => {
           onChange(
             Array.from((target as HTMLSelectElement).selectedOptions).map(
-              (o) => o.value
-            )
+              (o) => o.value,
+            ),
           );
         }}
       >
         {Object.keys(options).map((optGroup) => (
           <optgroup key={optGroup} label={optGroup}>
             {options[optGroup].map((option) => (
-              <option key={option.value} value={option.value}>{option.name}</option>
+              <option key={option.value} value={option.value}>
+                {option.name}
+              </option>
             ))}
           </optgroup>
         ))}
@@ -170,7 +172,9 @@ export function SelectSize({
         value={value}
       >
         {options.map((option) => (
-          <option key={option} value={option}>{option}</option>
+          <option key={option} value={option}>
+            {option}
+          </option>
         ))}
       </select>
     </div>

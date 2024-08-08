@@ -2,10 +2,7 @@ export type Axis = "x" | "y" | "z";
 export type RGB = [number, number, number];
 export type RGBA = [number, number, number, number];
 
-export type PaletteSource = Record<
-  string,
-  string | IBlock
->;
+export type PaletteSource = Record<string, string | IBlock>;
 
 export interface IBlock {
   version: number;

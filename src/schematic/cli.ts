@@ -20,47 +20,40 @@ export default async function main(
     `${basename(src, extname(src))}_${axis}_${Date.now()}.schematic`,
   );
 
-  await writeFile(
-    structureDest,
-    await img2schematic(
-      src,
-      palette,
-      axis,
-    ),
-  );
+  await writeFile(structureDest, await img2schematic(src, palette, axis));
 
   console.log(`Created ${structureDest}`);
 }
 
 if (import.meta.main) {
-  const { values: { axis, img, db, watch: watchFile, dest } } = parseArgs(
-    {
-      args: process.argv.slice(2),
-      options: {
-        axis: {
-          type: "string",
-          default: "x",
-          multiple: false,
-        },
-        img: {
-          type: "string",
-          multiple: false,
-        },
-        db: {
-          type: "string",
-          multiple: false,
-        },
-        watch: {
-          type: "boolean",
-          multiple: false,
-        },
-        dest: {
-          type: "string",
-          multiple: false,
-        },
+  const {
+    values: { axis, img, db, watch: watchFile, dest },
+  } = parseArgs({
+    args: process.argv.slice(2),
+    options: {
+      axis: {
+        type: "string",
+        default: "x",
+        multiple: false,
+      },
+      img: {
+        type: "string",
+        multiple: false,
+      },
+      db: {
+        type: "string",
+        multiple: false,
+      },
+      watch: {
+        type: "boolean",
+        multiple: false,
+      },
+      dest: {
+        type: "string",
+        multiple: false,
       },
     },
-  );
+  });
 
   const watcher = watchFile ? watch(img) : null;
 
@@ -82,12 +75,7 @@ if (import.meta.main) {
     process.exit(0);
   }
 
-  await main(
-    img,
-    await parseDbInput(db),
-    (axis ?? "x") as Axis,
-    dest,
-  );
+  await main(img, await parseDbInput(db), (axis ?? "x") as Axis, dest);
 
   process.exit(0);
 }

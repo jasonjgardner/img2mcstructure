@@ -1,8 +1,9 @@
 {
   "type": "module",
   "scripts": {
-    "format": "bunx @biomejs/biome format --write ./**/*.{js,ts,json,jsx,tsx,html,css}",
-    "build": "bun build ./app/index.tsx > ./dist/bundle.js"
+    "build": "bun run format && bun build ./app/index.tsx > ./dist/bundle.js",
+    "start": "bun run build && bun run ./main.ts",
+    "bump": "deno run -A jsr:@mys/bump@1"
   },
   "dependencies": {
     "@hono/hono": "npm:@jsr/hono__hono",
@@ -17,7 +18,6 @@
     "vox-reader": "2.1.2"
   },
   "devDependencies": {
-    "@biomejs/biome": "1.8.3",
     "@types/bun": "^1.1.6",
     "@types/node": "^20.14.9"
   }

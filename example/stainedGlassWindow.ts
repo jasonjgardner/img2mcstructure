@@ -12,11 +12,13 @@ const db = {
   ...rainbow,
 };
 
-const palette = createPalette(Object.fromEntries(
-  Object.keys(db).filter((id) => id.includes("stained_glass")).map((
-    id,
-  ) => [id, db[id as keyof typeof db]]),
-));
+const palette = createPalette(
+  Object.fromEntries(
+    Object.keys(db)
+      .filter((id) => id.includes("stained_glass"))
+      .map((id) => [id, db[id as keyof typeof db]]),
+  ),
+);
 
 const structureId = nanoid(6);
 

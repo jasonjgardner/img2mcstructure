@@ -14,25 +14,25 @@ if (import.meta.main) {
     process.exit(1);
   }
 
-  const { values: { db, src, dest } } = parseArgs(
-    {
-      args: process.argv.slice(2),
-      options: {
-        db: {
-          type: "string",
-          multiple: false,
-        },
-        src: {
-          type: "string",
-          multiple: false,
-        },
-        dest: {
-          type: "string",
-          multiple: false,
-        },
+  const {
+    values: { db, src, dest },
+  } = parseArgs({
+    args: process.argv.slice(2),
+    options: {
+      db: {
+        type: "string",
+        multiple: false,
+      },
+      src: {
+        type: "string",
+        multiple: false,
+      },
+      dest: {
+        type: "string",
+        multiple: false,
       },
     },
-  );
+  });
 
   const gif = new imagescript.GIF(await vox2gif(src));
 

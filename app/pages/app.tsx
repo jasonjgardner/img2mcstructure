@@ -54,7 +54,7 @@ export default function App() {
               0,
               0,
               canvasRef.current.width,
-              canvasRef.current.height
+              canvasRef.current.height,
             );
             ctx.drawImage(img, 0, 0, newWidth, newHeight);
           }
@@ -82,7 +82,9 @@ export default function App() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${title.toLowerCase().replace(/\s+/g, "_")}.${isStructure ? "mcstructure" : "mcfunction"}`;
+    a.download = `${title.toLowerCase().replace(/\s+/g, "_")}.${
+      isStructure ? "mcstructure" : "mcfunction"
+    }`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -98,7 +100,7 @@ export default function App() {
         palettes.map(async (id) => {
           const res = await fetch(`/db/${id}`);
           return res.json() as Promise<PaletteSource>;
-        })
+        }),
       )
     ).flat();
 
@@ -160,9 +162,8 @@ export default function App() {
                 checked={axis === "y"}
                 onChange={(e) =>
                   setAxis(
-                    (e.target as HTMLInputElement).value === "y" ? "y" : "x"
-                  )
-                }
+                    (e.target as HTMLInputElement).value === "y" ? "y" : "x",
+                  )}
               />{" "}
               Ceiling / Floor
             </label>
@@ -178,9 +179,8 @@ export default function App() {
                 checked={axis === "x"}
                 onChange={({ target }) =>
                   setAxis(
-                    (target as HTMLInputElement).value === "x" ? "x" : "y"
-                  )
-                }
+                    (target as HTMLInputElement).value === "x" ? "x" : "y",
+                  )}
               />
               Wall
             </label>
@@ -188,7 +188,7 @@ export default function App() {
 
           <fieldset className="flex flex-row py-1 space-x-1.5">
             <legend className="text-lg font-sans font-medium">Structure</legend>
-                <label
+            <label
               className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 space-x-2 flex justify-start"
               htmlFor="mcstructure"
             >
@@ -198,11 +198,7 @@ export default function App() {
                 id="mcstructure"
                 value="mcstructure"
                 checked={isStructure}
-                onChange={(e) =>
-                  setIsStructure(
-                   e.target.checked
-                  )
-                }
+                onChange={(e) => setIsStructure(e.target.checked)}
               />{" "}
               .mcstructure
             </label>
@@ -217,11 +213,7 @@ export default function App() {
                 id="mcfunction"
                 value="mcfunction"
                 checked={!isStructure}
-                onChange={(e) =>
-                  setIsStructure(
-                    !e.target.checked
-                  )
-                }
+                onChange={(e) => setIsStructure(!e.target.checked)}
               />
               .mcfunction
             </label>

@@ -1,6 +1,6 @@
 import type { Axis, IBlock, IMcStructure, StructurePalette } from "../types.ts";
-import * as nbt from "nbtify"
-import * as imagescript from "imagescript"
+import * as nbt from "nbtify";
+import * as imagescript from "imagescript";
 import decode from "../_decode.ts";
 import createPalette from "../_palette.ts";
 import {
@@ -57,8 +57,9 @@ function findBlock(
   blockPalette: StructurePalette,
 ): [Pick<IBlock, "id" | "states" | "version">, number] {
   const nearest = convertBlock(c, palette);
-  const blockIdx = blockPalette.findIndex(({ name, states }) =>
-    name === nearest.id && compareStates(nearest.states, states)
+  const blockIdx = blockPalette.findIndex(
+    ({ name, states }) =>
+      name === nearest.id && compareStates(nearest.states, states),
   );
 
   return [nearest, blockIdx];
@@ -118,13 +119,11 @@ export function constructDecoded(
         findBlock(c, palette, blockPalette);
 
       if (blockIdx === -1) {
-        blockIdx = blockPalette.push(
-          {
-            version: nearest.version ?? BLOCK_VERSION,
-            name: nearest.id ?? DEFAULT_BLOCK,
-            states: nearest.states ?? {},
-          },
-        ) - 1;
+        blockIdx = blockPalette.push({
+          version: nearest.version ?? BLOCK_VERSION,
+          name: nearest.id ?? DEFAULT_BLOCK,
+          states: nearest.states ?? {},
+        }) - 1;
 
         memo.set(c, [nearest, blockIdx]);
       }
@@ -174,7 +173,7 @@ export async function createMcStructure(
   );
 
   return await nbt.write(nbt.parse(structure), {
-    // name,
+    name,
     endian: "little",
     compression: null,
     bedrockLevel: false,

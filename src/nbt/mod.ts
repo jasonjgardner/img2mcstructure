@@ -1,7 +1,12 @@
 import type { Axis, IBlock } from "../types.ts";
 import * as nbt from "nbtify";
 import * as imagescript from "imagescript";
-import { DEFAULT_BLOCK, MASK_BLOCK, MAX_DEPTH, NBT_DATA_VERSION } from "../_constants.ts";
+import {
+  DEFAULT_BLOCK,
+  MASK_BLOCK,
+  MAX_DEPTH,
+  NBT_DATA_VERSION,
+} from "../_constants.ts";
 import { compareStates, getNearestColor } from "../_lib.ts";
 import decode from "../_decode.ts";
 
@@ -40,10 +45,7 @@ export interface INbtTag {
  * @param palette Block palette
  * @returns Nearest, masked, or default block
  */
-function convertBlock(
-  c: number,
-  palette: IBlock[],
-): IPaletteEntry {
+function convertBlock(c: number, palette: IBlock[]): IPaletteEntry {
   const [r, g, b, a] = imagescript.Image.colorToRGBA(c);
 
   if (a < 128) {
@@ -72,9 +74,10 @@ function findBlock(
   blockPalette: StructurePalette,
 ): [IPaletteEntry, number] {
   const nearest = convertBlock(c, palette);
-  const blockIdx = blockPalette.findIndex(({ Name, Properties }) =>
-    Name === nearest.Name &&
-    compareStates(nearest.Properties ?? {}, Properties ?? {})
+  const blockIdx = blockPalette.findIndex(
+    ({ Name, Properties }) =>
+      Name === nearest.Name &&
+      compareStates(nearest.Properties ?? {}, Properties ?? {}),
   );
 
   return [nearest, blockIdx];
@@ -103,10 +106,7 @@ export function constructDecoded(
 
   const [width, height, depth] = size;
 
-  const memo = new Map<
-    number,
-    [IPaletteEntry, number]
-  >();
+  const memo = new Map<number, [IPaletteEntry, number]>();
 
   /**
    * Block indices primary layer
@@ -122,12 +122,10 @@ export function constructDecoded(
         findBlock(c, palette, blockPalette);
 
       if (blockIdx === -1) {
-        blockIdx = blockPalette.push(
-          {
-            Name: nearest.Name ?? DEFAULT_BLOCK,
-            Properties: nearest.Properties ?? {},
-          },
-        ) - 1;
+        blockIdx = blockPalette.push({
+          Name: nearest.Name ?? DEFAULT_BLOCK,
+          Properties: nearest.Properties ?? {},
+        }) - 1;
 
         memo.set(c, [nearest, blockIdx]);
       }
