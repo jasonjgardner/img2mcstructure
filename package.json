@@ -1,6 +1,7 @@
 {
   "type": "module",
   "scripts": {
+    "typecheck": "tsc --watch",
     "build": "bun run format && bun build ./app/index.tsx > ./dist/bundle.js",
     "start": "bun run build && bun run ./main.ts",
     "bump": "deno run -A jsr:@mys/bump@1"
@@ -9,6 +10,7 @@
     "@hono/hono": "npm:@jsr/hono__hono",
     "@sigmasd/qrpng": "npm:@jsr/sigmasd__qrpng",
     "@std/dotenv": "npm:@jsr/std__dotenv",
+    "@std/fmt": "npm:@jsr/std__fmt@^1.0.1",
     "classix": "^2.1.38",
     "imagescript": "^1.3.0",
     "jszip": "3.10.1",
@@ -19,6 +21,7 @@
   },
   "devDependencies": {
     "@types/bun": "^1.1.6",
-    "@types/node": "^20.14.9"
+    "@types/node": "^20.14.9",
+    "typescript": "^5.5.4"
   }
 }

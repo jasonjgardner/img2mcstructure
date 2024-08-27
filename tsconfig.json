@@ -14,6 +14,6 @@
     "noEmit": true,
     "resolveJsonModule": true,
     "jsx": "react-jsx",
-    "jsxImportSource": "@hono/hono/jsx"
+    "jsxImportSource": "@jsr/hono__hono/jsx"
   }
 }
