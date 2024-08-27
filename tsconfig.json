@@ -17,7 +17,7 @@
     "jsx": "react-jsx",
     // "jsxImportSource": "@hono/hono/jsx"
     "isolatedModules": true,
-    // "strict": true,
+    "strict": true,
     // "noImplicitOverride": true,
     // "noPropertyAccessFromIndexSignature": true,
     // "noUncheckedIndexedAccess": true,
@@ -28,6 +28,8 @@
   },
   "exclude": [
     "./app",
-    "./main.ts"
+    "./main.ts",
+    "./server.ts",
+    "./**/cli.ts"
   ]
 }
