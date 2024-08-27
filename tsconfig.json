@@ -16,6 +16,15 @@
     "skipLibCheck": true,
     "jsx": "react-jsx",
     // "jsxImportSource": "@hono/hono/jsx"
+    "isolatedModules": true,
+    "strict": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUncheckedIndexedAccess": true,
+    "allowUnreachableCode": false,
+    "noUnusedLocals": true,
+    "allowUnusedLabels": false,
+    "noUnusedParameters": true
   },
   "exclude": [
     "./app",
