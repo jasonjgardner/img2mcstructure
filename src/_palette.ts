@@ -1,6 +1,6 @@
-import type { IBlock, PaletteSource, RGBA } from "./types.ts";
-import { BLOCK_VERSION } from "./_constants.ts";
-import { hex2rgb } from "./_lib.ts";
+import type { IBlock, PaletteSource, RGBA } from "./types.js";
+import { BLOCK_VERSION } from "./_constants.js";
+import { hex2rgb } from "./_lib.js";
 
 /**
  * Converts database of colors to palette of block data.

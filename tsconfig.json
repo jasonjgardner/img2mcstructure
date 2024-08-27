@@ -1,16 +1,13 @@
 {
   "compilerOptions": {
-    "target": "esnext",
+    "target": "ESNext",
     "lib": [
-      "esnext",
-      "dom",
-      "dom.iterable",
-      "dom.asynciterable"
+      "ESNext",
+      "DOM",
+      "DOM.Iterable",
+      "DOM.AsyncIterable"
     ],
     "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "allowImportingTsExtensions": true,
-    "allowSyntheticDefaultImports": true,
     "noEmit": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,

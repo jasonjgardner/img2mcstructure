@@ -1,14 +1,14 @@
-import type { Axis, IMcStructure, RGB, StructurePalette } from "./types.ts";
+import type { Axis, IMcStructure, RGB, StructurePalette } from "./types.js";
 import { basename, extname } from "node:path";
 import JSZip from "jszip";
 import * as imagescript from "imagescript";
-import type { DecodedFrames } from "./_decode.ts";
-import decode from "./_decode.ts";
-import { BLOCK_FORMAT_VERSION, BLOCK_VERSION } from "./_constants.ts";
-import { rgb2hex } from "./_lib.ts";
+import type { DecodedFrames } from "./_decode.js";
+import decode from "./_decode.js";
+import { BLOCK_FORMAT_VERSION, BLOCK_VERSION } from "./_constants.js";
+import { rgb2hex } from "./_lib.js";
 import * as nbt from "nbtify";
 import { nanoid } from "nanoid";
-import { dir2series, series2atlas } from "./atlas.ts";
+import { dir2series, series2atlas } from "./atlas.js";
 
 function getAverageColor(image: imagescript.Image): string {
   return rgb2hex(imagescript.Image.colorToRGB(image.averageColor()) as RGB);

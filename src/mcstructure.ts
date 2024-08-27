@@ -1,16 +1,16 @@
-import type { Axis, IBlock, IMcStructure, StructurePalette } from "./types.ts";
+import type { Axis, IBlock, IMcStructure, StructurePalette } from "./types.js";
 import * as nbt from "nbtify";
 import * as imagescript from "imagescript";
-import decode from "./_decode.ts";
-import createPalette from "./_palette.ts";
+import decode from "./_decode.js";
+import createPalette from "./_palette.js";
 import {
   BLOCK_VERSION,
   DEFAULT_BLOCK,
   MASK_BLOCK,
   MAX_DEPTH,
-} from "./_constants.ts";
-import rotateStructure from "./_rotate.ts";
-import { compareStates, getNearestColor } from "./_lib.ts";
+} from "./_constants.js";
+import rotateStructure from "./_rotate.js";
+import { compareStates, getNearestColor } from "./_lib.js";
 
 export { createPalette, decode };
 

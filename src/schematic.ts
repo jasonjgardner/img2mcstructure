@@ -1,9 +1,9 @@
-import type { Axis, IBlock } from "./types.ts";
+import type { Axis, IBlock } from "./types.js";
 import * as nbt from "nbtify";
 import * as imagescript from "imagescript";
-import { DEFAULT_BLOCK, MASK_BLOCK } from "./_constants.ts";
-import { getNearestColor } from "./_lib.ts";
-import decode from "./_decode.ts";
+import { DEFAULT_BLOCK, MASK_BLOCK } from "./_constants.js";
+import { getNearestColor } from "./_lib.js";
+import decode from "./_decode.js";
 
 export type PaletteBlock = string;
 

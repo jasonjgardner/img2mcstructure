@@ -1,4 +1,4 @@
-import type { Axis, IMcStructure } from "./types.ts";
+import type { Axis, IMcStructure } from "./types.js";
 
 function rotateOverY(structure: IMcStructure): IMcStructure {
   const {

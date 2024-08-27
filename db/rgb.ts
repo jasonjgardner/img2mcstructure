@@ -1,5 +1,5 @@
-import type { IBlock } from "../src/types.ts";
-import { BLOCK_VERSION } from "../src/_constants.ts";
+import type { IBlock } from "../src/types.js";
+import { BLOCK_VERSION } from "../src/_constants.js";
 export default [{
   color: [255, 255, 255],
   hexColor: "#ffffff",

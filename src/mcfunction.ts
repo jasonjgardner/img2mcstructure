@@ -1,9 +1,9 @@
-import type { PaletteSource } from "./types.ts";
+import type { PaletteSource } from "./types.js";
 import * as imagescript from "imagescript";
-import { getNearestColor } from "./_lib.ts";
-import decode from "./_decode.ts";
-import createPalette from "./_palette.ts";
-import { MAX_DEPTH } from "./_constants.ts";
+import { getNearestColor } from "./_lib.js";
+import decode from "./_decode.js";
+import createPalette from "./_palette.js";
+import { MAX_DEPTH } from "./_constants.js";
 
 /**
  * Convert an image to a series of `setblock` commands.
