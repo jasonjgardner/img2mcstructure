@@ -1,11 +1,8 @@
-import vox2mcstructure, { vox2gif } from "./mod.ts";
-import { parseDbInput } from "../_lib.ts";
-import * as nbt from "nbtify";
+import { vox2gif } from "./mod.ts";
 import * as imagescript from "imagescript";
 import { basename, extname, join } from "node:path";
 import { parseArgs } from "node:util";
 import { writeFile } from "node:fs/promises";
-import createPalette from "../_palette.ts";
 import process from "node:process";
 
 if (import.meta.main) {
@@ -15,7 +12,7 @@ if (import.meta.main) {
   }
 
   const {
-    values: { db, src, dest },
+    values: { db: _db, src, dest },
   } = parseArgs({
     args: process.argv.slice(2),
     options: {

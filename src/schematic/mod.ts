@@ -67,7 +67,7 @@ function findBlock(
 export function constructDecoded(
   frames: imagescript.GIF | Array<imagescript.Image | imagescript.Frame>,
   palette: IBlock[],
-  axis: Axis = "x",
+  _axis: Axis = "x",
 ): ISchematicTag {
   /**
    * Structure size (X, Y, Z)
@@ -91,7 +91,7 @@ export function constructDecoded(
   for (let z = 0; z < depth; z++) {
     const img = frames[z];
 
-    for (const [x, y, c] of img.iterateWithColors()) {
+    for (const [_x, _y, c] of img.iterateWithColors()) {
       let [nearest, blockIdx] = memo.get(c) ??
         findBlock(c, palette, blockPalette);
 
@@ -124,7 +124,7 @@ export async function createSchematic(
   frames: imagescript.GIF | Array<imagescript.Image | imagescript.Frame>,
   palette: IBlock[],
   axis: Axis = "x",
-  name = "img2schematic",
+  _name = "img2schematic",
 ): Promise<Uint8Array> {
   const decoded = constructDecoded(frames, palette, axis);
   const structure = JSON.stringify(decoded, null, 2);

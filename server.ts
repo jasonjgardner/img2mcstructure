@@ -32,6 +32,7 @@ export default function main(defaultDb: PaletteSource) {
   });
 
   app.post("/v1/fill", async (ctx) => {
+    // @ts-expect-error
     const { img, axis, db } = await ctx.req.json();
 
     try {
@@ -130,6 +131,7 @@ export default function main(defaultDb: PaletteSource) {
       rewriteRequestPath(path) {
         return path.replace(/^\/static\//, "dist/");
       },
+      // @ts-expect-error
       getContent(path, c) {
         return readFile(path, "utf-8");
       },

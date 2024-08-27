@@ -73,7 +73,7 @@ function findBlock(
 export function constructDecoded(
   frames: imagescript.GIF | Array<imagescript.Image | imagescript.Frame>,
   palette: IBlock[],
-  axis: Axis = "x",
+  _axis: Axis = "x",
 ): IMcStructure {
   /**
    * Block palette
