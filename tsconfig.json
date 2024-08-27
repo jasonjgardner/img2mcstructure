@@ -13,7 +13,12 @@
     "allowSyntheticDefaultImports": true,
     "noEmit": true,
     "resolveJsonModule": true,
+    "skipLibCheck": true,
     "jsx": "react-jsx",
-    "jsxImportSource": "@jsr/hono__hono/jsx"
-  }
+    // "jsxImportSource": "@hono/hono/jsx"
+  },
+  "exclude": [
+    "./app",
+    "./main.ts"
+  ]
 }
