@@ -28,6 +28,7 @@
   },
   "exclude": [
     "./app",
+    "./example",
     "./main.ts",
     "./server.ts",
     "./**/cli.ts"
