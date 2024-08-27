@@ -1,4 +1,4 @@
-import type { Axis, IBlock } from "../types.ts";
+import type { Axis, IBlock } from "./types.ts";
 import * as nbt from "nbtify";
 import * as imagescript from "imagescript";
 import {
@@ -6,9 +6,9 @@ import {
   MASK_BLOCK,
   MAX_DEPTH,
   NBT_DATA_VERSION,
-} from "../_constants.ts";
-import { compareStates, getNearestColor } from "../_lib.ts";
-import decode from "../_decode.ts";
+} from "./_constants.ts";
+import { compareStates, getNearestColor } from "./_lib.ts";
+import decode from "./_decode.ts";
 
 export interface IPaletteEntry {
   Name: string;

@@ -1,7 +1,7 @@
-import { BLOCK_VERSION, DEFAULT_BLOCK, MASK_BLOCK } from "../_constants.ts";
-import type { IBlock, IMcStructure } from "../types.ts";
+import { BLOCK_VERSION, DEFAULT_BLOCK, MASK_BLOCK } from "./_constants.ts";
+import type { IBlock, IMcStructure } from "./types.ts";
 import readVox from "vox-reader";
-import { compareStates, getNearestColor } from "../_lib.ts";
+import { compareStates, getNearestColor } from "./_lib.ts";
 import * as nbt from "nbtify";
 import * as imagescript from "imagescript";
 import { readFile } from "node:fs/promises";
