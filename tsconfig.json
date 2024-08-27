@@ -14,8 +14,6 @@
     "noEmit": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "jsx": "react-jsx",
-    // "jsxImportSource": "@hono/hono/jsx"
     "isolatedModules": true,
     "strict": true,
     // "noImplicitOverride": true,
@@ -25,12 +23,5 @@
     "noUnusedLocals": true,
     "allowUnusedLabels": false,
     "noUnusedParameters": true
-  },
-  "exclude": [
-    "./app",
-    "./example",
-    "./main.ts",
-    "./server.ts",
-    "./**/cli.ts"
-  ]
+  }
 }
