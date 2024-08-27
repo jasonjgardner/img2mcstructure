@@ -7,16 +7,10 @@
     "bump": "deno run -A jsr:@mys/bump@1"
   },
   "dependencies": {
-    "@hono/hono": "npm:@jsr/hono__hono",
-    "@sigmasd/qrpng": "npm:@jsr/sigmasd__qrpng",
-    "@std/dotenv": "npm:@jsr/std__dotenv",
-    "@std/fmt": "npm:@jsr/std__fmt@^1.0.1",
-    "classix": "^2.1.38",
     "imagescript": "^1.3.0",
     "jszip": "3.10.1",
     "nanoid": "5.0.7",
     "nbtify": "1.90.1",
-    "openai": "^4.52.3",
     "vox-reader": "2.1.2"
   },
   "devDependencies": {
