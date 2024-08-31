@@ -1,6 +1,6 @@
 import type { Axis, IBlock, IMcStructure, StructurePalette } from "./types.js";
-import * as nbt from "nbtify";
-import * as imagescript from "imagescript";
+import { write, parse } from "nbtify";
+import { Image, GIF, Frame } from "imagescript";
 import decode from "./_decode.js";
 import createPalette from "./_palette.js";
 import {
@@ -24,7 +24,7 @@ function convertBlock(
   c: number,
   palette: IBlock[],
 ): Pick<IBlock, "id" | "states" | "version"> {
-  const [r, g, b, a] = imagescript.Image.colorToRGBA(c);
+  const [r, g, b, a] = Image.colorToRGBA(c);
 
   if (a < 128) {
     return {
@@ -71,7 +71,7 @@ function findBlock(
  * @param palette - The list of blocks permitted to be used in the structure
  */
 export function constructDecoded(
-  frames: imagescript.GIF | Array<imagescript.Image | imagescript.Frame>,
+  frames: GIF | Array<Image | Frame>,
   palette: IBlock[],
   _axis: Axis = "x",
 ): IMcStructure {
@@ -162,7 +162,7 @@ export function constructDecoded(
  * @returns NBT data as a buffer
  */
 export async function createMcStructure(
-  frames: imagescript.GIF | Array<imagescript.Image | imagescript.Frame>,
+  frames: GIF | Array<Image | Frame>,
   palette: IBlock[],
   axis: Axis = "x",
   name = "img2mcstructure",
@@ -172,7 +172,7 @@ export async function createMcStructure(
     axis !== "x" ? rotateStructure(decoded, axis) : decoded,
   );
 
-  return await nbt.write(nbt.parse(structure), {
+  return await write(parse(structure), {
     // @ts-expect-error - name is not in the type definition
     name,
     endian: "little",

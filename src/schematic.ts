@@ -1,6 +1,6 @@
 import type { Axis, IBlock } from "./types.js";
-import * as nbt from "nbtify";
-import * as imagescript from "imagescript";
+import { write, parse } from "nbtify";
+import { Image, GIF, Frame } from "imagescript";
 import { DEFAULT_BLOCK, MASK_BLOCK } from "./_constants.js";
 import { getNearestColor } from "./_lib.js";
 import decode from "./_decode.js";
@@ -38,7 +38,7 @@ export interface ISchematicTag {
  * @returns Nearest, masked, or default block
  */
 function convertBlock(c: number, palette: IBlock[]): PaletteBlock {
-  const [r, g, b, a] = imagescript.Image.colorToRGBA(c);
+  const [r, g, b, a] = Image.colorToRGBA(c);
 
   if (a < 128) {
     return MASK_BLOCK;
@@ -65,7 +65,7 @@ function findBlock(
 }
 
 export function constructDecoded(
-  frames: imagescript.GIF | Array<imagescript.Image | imagescript.Frame>,
+  frames: GIF | Array<Image | Frame>,
   palette: IBlock[],
   _axis: Axis = "x",
 ): ISchematicTag {
@@ -121,7 +121,7 @@ export function constructDecoded(
 }
 
 export async function createSchematic(
-  frames: imagescript.GIF | Array<imagescript.Image | imagescript.Frame>,
+  frames: GIF | Array<Image | Frame>,
   palette: IBlock[],
   axis: Axis = "x",
   _name = "img2schematic",
@@ -129,7 +129,7 @@ export async function createSchematic(
   const decoded = constructDecoded(frames, palette, axis);
   const structure = JSON.stringify(decoded, null, 2);
 
-  return await nbt.write(nbt.parse(structure), {
+  return await write(parse(structure), {
     //name,
     endian: "big",
     compression: null,

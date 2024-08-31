@@ -1,5 +1,5 @@
 import type { PaletteSource } from "./types.js";
-import * as imagescript from "imagescript";
+import { Image } from "imagescript";
 import { getNearestColor } from "./_lib.js";
 import decode from "./_decode.js";
 import createPalette from "./_palette.js";
@@ -26,7 +26,7 @@ export default async function img2mcfunction(
   for (let z = 0; z < len; z++) {
     const img = frames[z];
     for (const [x, y, c] of img.iterateWithColors()) {
-      const [r, g, b, a] = imagescript.Image.colorToRGBA(c);
+      const [r, g, b, a] = Image.colorToRGBA(c);
 
       if (a < 128) {
         continue;

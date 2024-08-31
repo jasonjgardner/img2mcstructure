@@ -1,17 +1,17 @@
 import type { Axis, IMcStructure, RGB, StructurePalette } from "./types.js";
 import { basename, extname } from "node:path";
 import JSZip from "jszip";
-import * as imagescript from "imagescript";
+import { Image } from "imagescript";
 import type { DecodedFrames } from "./_decode.js";
 import decode from "./_decode.js";
 import { BLOCK_FORMAT_VERSION, BLOCK_VERSION } from "./_constants.js";
 import { rgb2hex } from "./_lib.js";
-import * as nbt from "nbtify";
+import { write, parse } from "nbtify";
 import { nanoid } from "nanoid";
 import { dir2series, series2atlas } from "./atlas.js";
 
-function getAverageColor(image: imagescript.Image): string {
-  return rgb2hex(imagescript.Image.colorToRGB(image.averageColor()) as RGB);
+function getAverageColor(image: Image): string {
+  return rgb2hex(Image.colorToRGB(image.averageColor()) as RGB);
 }
 
 function createBlock({
@@ -24,7 +24,7 @@ function createBlock({
   axis = "z",
 }: {
   namespace: string;
-  image: imagescript.Image;
+  image: Image;
   gridSize: number;
   x: number;
   y: number;
@@ -171,8 +171,8 @@ async function iterateDepth({
 }) {
   for (let z = 0; z < depth; z++) {
     const resizeTo = gridSize * cropSize;
-    const frame: imagescript.Image = (
-      frames[z].clone() as imagescript.Image
+    const frame: Image = (
+      frames[z].clone() as Image
     ).resize(resizeTo, resizeTo);
 
     for (let x = 0; x < gridSize; x++) {
@@ -321,7 +321,7 @@ async function createFlipbook({
     for (let y = 0; y < gridSize; y++) {
       const sliceId = `${namespace}_${x}_${y}_1`;
 
-      const flatFrames: imagescript.Image[] = frames.flat();
+      const flatFrames: Image[] = frames.flat();
 
       const slice = await series2atlas(
         flatFrames.map((frame) =>
@@ -354,12 +354,12 @@ async function createFlipbook({
 
       if (pbr) {
         try {
-          const flatMerFrames: imagescript.Image[] = merTexture.flat();
+          const flatMerFrames: Image[] = merTexture.flat();
           addon.file(
             `rp/textures/blocks/${sliceId}_mer.png`,
             await (
               await series2atlas(
-                flatMerFrames.map((frame: imagescript.Image) =>
+                flatMerFrames.map((frame: Image) =>
                   frame
                     .clone()
                     .crop(x * cropSize, y * cropSize, cropSize, cropSize)
@@ -373,12 +373,12 @@ async function createFlipbook({
         }
 
         try {
-          const flatNormalFrames: imagescript.Image[] = normalTexture.flat();
+          const flatNormalFrames: Image[] = normalTexture.flat();
           addon.file(
             `rp/textures/blocks/${sliceId}_normal.png`,
             await (
               await series2atlas(
-                flatNormalFrames.map((frame: imagescript.Image) =>
+                flatNormalFrames.map((frame: Image) =>
                   frame
                     .clone()
                     .crop(x * cropSize, y * cropSize, cropSize, cropSize)
@@ -492,13 +492,13 @@ export default async function img2mcaddon(
   const baseName = basename(colorSrc, extname(colorSrc));
 
   let merTexture: DecodedFrames = [
-    new imagescript.Image(gridSize * resolution, gridSize * resolution).fill(
-      imagescript.Image.rgbToColor(0, 0, 255),
+    new Image(gridSize * resolution, gridSize * resolution).fill(
+      Image.rgbToColor(0, 0, 255),
     ),
   ];
   let normalTexture: DecodedFrames = [
-    new imagescript.Image(gridSize * resolution, gridSize * resolution).fill(
-      imagescript.Image.rgbToColor(127, 127, 255),
+    new Image(gridSize * resolution, gridSize * resolution).fill(
+      Image.rgbToColor(127, 127, 255),
     ),
   ];
 
@@ -620,7 +620,7 @@ export default async function img2mcaddon(
     structure_world_origin: [0, 0, 0],
   };
 
-  const mcstructure = await nbt.write(nbt.parse(JSON.stringify(tag)), {
+  const mcstructure = await write(parse(JSON.stringify(tag)), {
     // @ts-expect-error - name is not in the type definition
     name: `${namespace}_${jobId}`,
     endian: "little",

@@ -2,8 +2,8 @@ import { BLOCK_VERSION, DEFAULT_BLOCK, MASK_BLOCK } from "./_constants.js";
 import type { IBlock, IMcStructure } from "./types.js";
 import readVox from "vox-reader";
 import { compareStates, getNearestColor } from "./_lib.js";
-import * as nbt from "nbtify";
-import * as imagescript from "imagescript";
+import { write, parse } from "nbtify";
+import { GIF, Frame, Image } from "imagescript";
 import { readFile } from "node:fs/promises";
 
 interface VoxData {
@@ -170,7 +170,7 @@ export function constructDecoded(
  */
 export async function vox2gif(
   voxSrc: string,
-): Promise<imagescript.GIF | imagescript.Frame[]> {
+): Promise<GIF | Frame[]> {
   // Iterate over the Z axis of the structure
   // And convert each layer to an image
   // Then add each image to the gif
@@ -184,7 +184,7 @@ export async function vox2gif(
     Math.ceil(vox.size.x),
   ];
 
-  const frames: imagescript.Frame[] = [];
+  const frames: Frame[] = [];
 
   for (let z = 0; z < size[0]; z++) {
     const layer = Array.from({ length: size[1] * size[2] }, () => 0);
@@ -197,13 +197,13 @@ export async function vox2gif(
       }
     }
 
-    const image = new imagescript.Frame(
+    const image = new Frame(
       size[2],
       size[1],
       200,
       0,
       0,
-      imagescript.Frame.DISPOSAL_BACKGROUND,
+      Frame.DISPOSAL_BACKGROUND,
     );
 
     for (let y = 0; y <= size[1]; y++) {
@@ -219,7 +219,7 @@ export async function vox2gif(
         image.setPixelAt(
           Math.max(1, Math.min(size[2], x)),
           Math.max(1, Math.min(size[1], y)),
-          imagescript.Image.rgbToColor(color.r, color.g, color.b),
+          Image.rgbToColor(color.r, color.g, color.b),
         );
       }
     }
@@ -245,7 +245,7 @@ export default async function vox2mcstructure(
 
   const structure = JSON.stringify(constructDecoded(vox, db));
 
-  return await nbt.write(nbt.parse(structure), {
+  return await write(parse(structure), {
     // name: basename(voxSrc, ".vox"),
     endian: "little",
     compression: "gzip",

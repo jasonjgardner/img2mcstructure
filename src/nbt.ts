@@ -1,6 +1,6 @@
 import type { Axis, IBlock } from "./types.js";
-import * as nbt from "nbtify";
-import * as imagescript from "imagescript";
+import { write, parse } from "nbtify";
+import { Image, GIF, Frame } from "imagescript";
 import {
   DEFAULT_BLOCK,
   MASK_BLOCK,
@@ -46,7 +46,7 @@ export interface INbtTag {
  * @returns Nearest, masked, or default block
  */
 function convertBlock(c: number, palette: IBlock[]): IPaletteEntry {
-  const [r, g, b, a] = imagescript.Image.colorToRGBA(c);
+  const [r, g, b, a] = Image.colorToRGBA(c);
 
   if (a < 128) {
     return {
@@ -91,7 +91,7 @@ function findBlock(
  * @returns NBT tag
  */
 export function constructDecoded(
-  frames: imagescript.GIF | Array<imagescript.Image | imagescript.Frame>,
+  frames: GIF | Array<Image | Frame>,
   palette: IBlock[],
   axis: Axis = "x",
 ): INbtTag {
@@ -164,14 +164,14 @@ export function constructDecoded(
  * @returns NBT structure data
  */
 export async function createNbtStructure(
-  frames: imagescript.GIF | Array<imagescript.Image | imagescript.Frame>,
+  frames: GIF | Array<Image | Frame>,
   palette: IBlock[],
   axis: Axis = "x",
 ): Promise<Uint8Array> {
   const decoded = constructDecoded(frames, palette, axis);
   const structure = JSON.stringify(decoded, null, 2);
 
-  return await nbt.write(nbt.parse(structure), {
+  return await write(parse(structure), {
     // name,
     endian: "big",
     compression: null,
