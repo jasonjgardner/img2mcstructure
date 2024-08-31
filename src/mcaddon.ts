@@ -6,7 +6,7 @@ import type { DecodedFrames } from "./_decode.js";
 import decode from "./_decode.js";
 import { BLOCK_FORMAT_VERSION, BLOCK_VERSION } from "./_constants.js";
 import { rgb2hex } from "./_lib.js";
-import { write, parse, Int32, IntTag } from "nbtify";
+import { write, Int32, IntTag } from "nbtify";
 import { nanoid } from "nanoid";
 import { dir2series, series2atlas } from "./atlas.js";
 
@@ -620,7 +620,7 @@ export default async function img2mcaddon(
     structure_world_origin: [new Int32(0), new Int32(0), new Int32(0)],
   };
 
-  const mcstructure = await write(parse(JSON.stringify(tag)), {
+  const mcstructure = await write(tag, {
     // @ts-expect-error - name is not in the type definition
     name: `${namespace}_${jobId}`,
     endian: "little",

@@ -1,5 +1,5 @@
 import type { Axis, IBlock, IMcStructure, StructurePalette } from "./types.js";
-import { write, parse, Int32, type IntTag } from "nbtify";
+import { write, Int32, type IntTag } from "nbtify";
 import { Image, GIF, Frame } from "imagescript";
 import decode from "./_decode.js";
 import createPalette from "./_palette.js";
@@ -168,11 +168,9 @@ export async function createMcStructure(
   name = "img2mcstructure",
 ): Promise<Uint8Array> {
   const decoded = constructDecoded(frames, palette);
-  const structure = JSON.stringify(
-    axis !== "x" ? rotateStructure(decoded, axis) : decoded,
-  );
+  const structure = axis !== "x" ? rotateStructure(decoded, axis) : decoded;
 
-  return await write(parse(structure), {
+  return await write(structure, {
     // @ts-expect-error - name is not in the type definition
     name,
     endian: "little",
