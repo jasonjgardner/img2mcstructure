@@ -171,8 +171,7 @@ export async function createMcStructure(
   const structure = axis !== "x" ? rotateStructure(decoded, axis) : decoded;
 
   return await write(structure, {
-    // @ts-expect-error - name is not in the type definition
-    name,
+    rootName: name,
     endian: "little",
     compression: null,
     bedrockLevel: false,

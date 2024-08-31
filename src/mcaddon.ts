@@ -621,8 +621,7 @@ export default async function img2mcaddon(
   };
 
   const mcstructure = await write(tag, {
-    // @ts-expect-error - name is not in the type definition
-    name: `${namespace}_${jobId}`,
+    rootName: `${namespace}_${jobId}`,
     endian: "little",
     compression: null,
     bedrockLevel: false,
