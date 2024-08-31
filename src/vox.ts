@@ -2,7 +2,7 @@ import { BLOCK_VERSION, DEFAULT_BLOCK, MASK_BLOCK } from "./_constants.js";
 import type { IBlock, IMcStructure } from "./types.js";
 import readVox from "vox-reader";
 import { compareStates, getNearestColor } from "./_lib.js";
-import { write, parse } from "nbtify";
+import { write, parse, Int32, type IntTag } from "nbtify";
 import { GIF, Frame, Image } from "imagescript";
 import { readFile } from "node:fs/promises";
 
@@ -51,7 +51,7 @@ function convertBlock(
     return {
       id: MASK_BLOCK,
       states: {},
-      version: BLOCK_VERSION,
+      version: new Int32(BLOCK_VERSION),
     };
   }
 
@@ -61,7 +61,7 @@ function convertBlock(
     return {
       id: DEFAULT_BLOCK,
       states: {},
-      version: BLOCK_VERSION,
+      version: new Int32(BLOCK_VERSION),
     };
   }
 
@@ -76,15 +76,15 @@ function findBlock(
   c: VoxData["rgba"]["values"][0],
   palette: IBlock[],
   blockPalette: StructurePalette,
-): [Pick<IBlock, "id" | "states" | "version">, number] {
+): [Pick<IBlock, "id" | "states" | "version">, IntTag] {
   const nearest = convertBlock(
     [c?.r ?? 0, c?.g ?? 0, c?.b ?? 0, c?.a ?? 0],
     palette,
   );
-  const blockIdx = blockPalette.findIndex(
+  const blockIdx: IntTag = new Int32(blockPalette.findIndex(
     ({ name, states }) =>
       name === nearest.id && compareStates(nearest.states, states),
-  );
+  ));
 
   return [nearest, blockIdx];
 }
@@ -108,20 +108,20 @@ export function constructDecoded(
   /**
    * Structure size (X, Y, Z)
    */
-  const size: [number, number, number] = [vox.size.z, vox.size.y, vox.size.x];
+  const size: [IntTag, IntTag, IntTag] = [new Int32(vox.size.z), new Int32(vox.size.y), new Int32(vox.size.x)];
 
-  const [width, height, depth] = size;
+  const [width, height, depth] = size.map(tag => tag.valueOf());
 
   const memo = new Map<
     number,
-    [Pick<IBlock, "states" | "version" | "id">, number]
+    [Pick<IBlock, "states" | "version" | "id">, IntTag]
   >();
 
   /**
    * Block indices primary layer
    */
-  const layer = Array.from({ length: width * height * depth }, () => -1);
-  const waterLayer = layer.slice();
+  const layer: IntTag[] = Array.from({ length: width * height * depth }, () => new Int32(-1));
+  const waterLayer: IntTag[] = layer.slice();
 
   for (const value of vox.xyzi.values) {
     const [x, y, z, i] = [value.x, value.y, value.z, value.i];
@@ -129,12 +129,12 @@ export function constructDecoded(
     let [nearest, blockIdx] = memo.get(i) ??
       findBlock(vox.rgba.values[i], palette, blockPalette);
 
-    if (blockIdx === -1) {
-      blockIdx = blockPalette.push({
+    if (blockIdx.valueOf() === -1) {
+      blockIdx = new Int32(blockPalette.push({
         version: nearest.version ?? BLOCK_VERSION,
         name: nearest.id ?? DEFAULT_BLOCK,
         states: nearest.states ?? {},
-      }) - 1;
+      }) - 1);
 
       memo.set(i, [nearest, blockIdx]);
     }
@@ -145,11 +145,11 @@ export function constructDecoded(
   }
 
   const tag: IMcStructure = {
-    format_version: 1,
+    format_version: new Int32(1),
     size,
-    structure_world_origin: [0, 0, 0],
+    structure_world_origin: [new Int32(0), new Int32(0), new Int32(0)],
     structure: {
-      block_indices: [layer.filter((i) => i !== -1), waterLayer],
+      block_indices: [layer.filter((i) => i.valueOf() !== -1), waterLayer],
       entities: [],
       palette: {
         default: {

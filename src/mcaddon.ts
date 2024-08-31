@@ -6,7 +6,7 @@ import type { DecodedFrames } from "./_decode.js";
 import decode from "./_decode.js";
 import { BLOCK_FORMAT_VERSION, BLOCK_VERSION } from "./_constants.js";
 import { rgb2hex } from "./_lib.js";
-import { write, parse } from "nbtify";
+import { write, parse, Int32, IntTag } from "nbtify";
 import { nanoid } from "nanoid";
 import { dir2series, series2atlas } from "./atlas.js";
 
@@ -253,7 +253,7 @@ async function iterateDepth({
         const blockIdx = blockPalette.push({
           name: `${namespace}:${sliceId}`,
           states: {},
-          version: BLOCK_VERSION,
+          version: new Int32(BLOCK_VERSION),
         }) - 1;
 
         volume[z][x][y] = blockIdx;
@@ -411,7 +411,7 @@ async function createFlipbook({
       const blockIdx = blockPalette.push({
         name: `${namespace}:${sliceId}`,
         states: {},
-        version: BLOCK_VERSION,
+        version: new Int32(BLOCK_VERSION),
       }) - 1;
 
       volume[0][x][y] = blockIdx;
@@ -593,19 +593,19 @@ export default async function img2mcaddon(
   }
 
   const rotatedVolume = rotateVolume(flipbookVolume ?? volume, axis);
-  const size: [number, number, number] = axis === "y"
-    ? [gridSize, depth, gridSize]
-    : [gridSize, gridSize, depth];
+  const size: [IntTag, IntTag, IntTag] = axis === "y"
+    ? [new Int32(gridSize), new Int32(depth), new Int32(gridSize)]
+    : [new Int32(gridSize), new Int32(gridSize), new Int32(depth)];
 
-  const flatVolume = rotatedVolume.flat(2);
-  const waterLayer = Array.from({ length: flatVolume.length }, () => -1);
+  const flatVolume: IntTag[] = rotatedVolume.flat(2).map(value => new Int32(value));
+  const waterLayer: IntTag[] = Array.from({ length: flatVolume.length }, () => new Int32(-1));
 
   if (flatVolume.length !== waterLayer.length) {
     throw new Error("Layer lengths do not match");
   }
 
   const tag: IMcStructure = {
-    format_version: 1,
+    format_version: new Int32(1),
     size,
     structure: {
       block_indices: [flatVolume, waterLayer],
@@ -617,7 +617,7 @@ export default async function img2mcaddon(
         },
       },
     },
-    structure_world_origin: [0, 0, 0],
+    structure_world_origin: [new Int32(0), new Int32(0), new Int32(0)],
   };
 
   const mcstructure = await write(parse(JSON.stringify(tag)), {

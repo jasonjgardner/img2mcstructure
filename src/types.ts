@@ -7,8 +7,8 @@ export type RGBA = [number, number, number, number];
 export type PaletteSource = Record<string, string | IBlock>;
 
 export interface IBlock {
-  version: number;
-  id: string;
+  version: IntTag;
+  id: StringTag;
   states: Record<string, unknown>;
   hexColor: string;
   color: RGB | RGBA;

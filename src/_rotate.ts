@@ -1,3 +1,4 @@
+import { Int32, type IntTag } from "nbtify";
 import type { Axis, IMcStructure } from "./types.js";
 
 function rotateOverY(structure: IMcStructure): IMcStructure {
@@ -7,9 +8,9 @@ function rotateOverY(structure: IMcStructure): IMcStructure {
       block_indices: [layer],
     },
   } = structure;
-  const [width, height, depth] = size;
+  const [width, height, depth] = size.map(tag => tag.valueOf());
 
-  const newLayer = Array.from({ length: width * height * depth }, () => -1);
+  const newLayer: IntTag[] = Array.from({ length: width * height * depth }, () => new Int32(-1));
 
   for (let z = 0; z < depth; z++) {
     for (let y = 0; y < height; y++) {
@@ -22,7 +23,7 @@ function rotateOverY(structure: IMcStructure): IMcStructure {
     }
   }
 
-  structure.size = [width, depth, height];
+  structure.size = [new Int32(width), new Int32(depth), new Int32(height)];
 
   structure.structure.block_indices[0] = newLayer;
 
@@ -36,9 +37,9 @@ function rotateOverZ(structure: IMcStructure): IMcStructure {
       block_indices: [layer],
     },
   } = structure;
-  const [width, height, depth] = size;
+  const [width, height, depth] = size.map(tag => tag.valueOf());
 
-  const newLayer = Array.from({ length: width * height * depth }, () => -1);
+  const newLayer: IntTag[] = Array.from({ length: width * height * depth }, () => new Int32(-1));
 
   for (let z = 0; z < depth; z++) {
     for (let y = 0; y < height; y++) {
@@ -50,7 +51,7 @@ function rotateOverZ(structure: IMcStructure): IMcStructure {
     }
   }
 
-  structure.size = [width, height, depth];
+  structure.size = [new Int32(width), new Int32(height), new Int32(depth)];
 
   structure.structure.block_indices[0] = newLayer;
 
@@ -64,9 +65,9 @@ function rotateOverX(structure: IMcStructure): IMcStructure {
       block_indices: [layer],
     },
   } = structure;
-  const [width, height, depth] = size;
+  const [width, height, depth] = size.map(tag => tag.valueOf());
 
-  const newLayer = Array.from({ length: width * height * depth }, () => -1);
+  const newLayer: IntTag[] = Array.from({ length: width * height * depth }, () => new Int32(-1));
 
   for (let z = 0; z < depth; z++) {
     for (let y = 0; y < height; y++) {
@@ -78,7 +79,7 @@ function rotateOverX(structure: IMcStructure): IMcStructure {
     }
   }
 
-  structure.size = [depth, height, width];
+  structure.size = [new Int32(depth), new Int32(height), new Int32(width)];
 
   structure.structure.block_indices[0] = newLayer;
 

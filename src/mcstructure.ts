@@ -1,5 +1,5 @@
 import type { Axis, IBlock, IMcStructure, StructurePalette } from "./types.js";
-import { write, parse } from "nbtify";
+import { write, parse, Int32, type IntTag } from "nbtify";
 import { Image, GIF, Frame } from "imagescript";
 import decode from "./_decode.js";
 import createPalette from "./_palette.js";
@@ -30,7 +30,7 @@ function convertBlock(
     return {
       id: MASK_BLOCK,
       states: {},
-      version: BLOCK_VERSION,
+      version: new Int32(BLOCK_VERSION),
     };
   }
 
@@ -40,7 +40,7 @@ function convertBlock(
     return {
       id: DEFAULT_BLOCK,
       states: {},
-      version: BLOCK_VERSION,
+      version: new Int32(BLOCK_VERSION),
     };
   }
 
@@ -55,12 +55,12 @@ function findBlock(
   c: number,
   palette: IBlock[],
   blockPalette: StructurePalette,
-): [Pick<IBlock, "id" | "states" | "version">, number] {
+): [Pick<IBlock, "id" | "states" | "version">, IntTag] {
   const nearest = convertBlock(c, palette);
-  const blockIdx = blockPalette.findIndex(
+  const blockIdx: IntTag = new Int32(blockPalette.findIndex(
     ({ name, states }) =>
       name === nearest.id && compareStates(nearest.states, states),
-  );
+  ));
 
   return [nearest, blockIdx];
 }
@@ -90,24 +90,24 @@ export function constructDecoded(
   /**
    * Structure size (X, Y, Z)
    */
-  const size: [number, number, number] = [
-    frames[0].width,
-    frames[0].height,
-    frames.length,
+  const size: [IntTag, IntTag, IntTag] = [
+    new Int32(frames[0].width),
+    new Int32(frames[0].height),
+    new Int32(frames.length),
   ];
 
-  const [width, height, depth] = size;
+  const [width, height, depth] = size.map(tag => tag.valueOf());
 
   const memo = new Map<
     number,
-    [Pick<IBlock, "states" | "version" | "id">, number]
+    [Pick<IBlock, "states" | "version" | "id">, IntTag]
   >();
 
   /**
    * Block indices primary layer
    */
-  const layer = Array.from({ length: width * height * depth }, () => -1);
-  const waterLayer = layer.slice();
+  const layer: IntTag[] = Array.from({ length: width * height * depth }, () => new Int32(-1));
+  const waterLayer: IntTag[] = layer.slice();
 
   const loopDepth = Math.min(MAX_DEPTH, depth);
 
@@ -118,12 +118,12 @@ export function constructDecoded(
       let [nearest, blockIdx] = memo.get(c) ??
         findBlock(c, palette, blockPalette);
 
-      if (blockIdx === -1) {
-        blockIdx = blockPalette.push({
+      if (blockIdx.valueOf() === -1) {
+        blockIdx = new Int32(blockPalette.push({
           version: nearest.version ?? BLOCK_VERSION,
           name: nearest.id ?? DEFAULT_BLOCK,
           states: nearest.states ?? {},
-        }) - 1;
+        }) - 1);
 
         memo.set(c, [nearest, blockIdx]);
       }
@@ -135,11 +135,11 @@ export function constructDecoded(
   }
 
   const tag: IMcStructure = {
-    format_version: 1,
+    format_version: new Int32(1),
     size,
-    structure_world_origin: [0, 0, 0],
+    structure_world_origin: [new Int32(0), new Int32(0), new Int32(0)],
     structure: {
-      block_indices: [layer.filter((i) => i !== -1), waterLayer],
+      block_indices: [layer.filter((i) => i.valueOf() !== -1), waterLayer],
       entities: [],
       palette: {
         default: {
