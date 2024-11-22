@@ -1,5 +1,8 @@
-import { NBT_DATA_VERSION } from "../_constants.ts";
-import type { PaletteSource } from "../types.ts";
+// @ts-nocheck
+// It seems like this file isn't complete yet, so I didn't want to remove what was in progress.
+
+import { NBT_DATA_VERSION } from "./_constants.js";
+import type { PaletteSource } from "./types.js";
 
 export interface ISubChunk {
   Y: number;

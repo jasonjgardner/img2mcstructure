@@ -1,9 +1,9 @@
-import type { PaletteSource } from "../types.ts";
-import * as imagescript from "imagescript";
-import { getNearestColor } from "../_lib.ts";
-import decode from "../_decode.ts";
-import createPalette from "../_palette.ts";
-import { MAX_DEPTH } from "../_constants.ts";
+import type { PaletteSource } from "./types.js";
+import { Image } from "imagescript";
+import { getNearestColor } from "./_lib.js";
+import decode from "./_decode.js";
+import createPalette from "./_palette.js";
+import { MAX_DEPTH } from "./_constants.js";
 
 /**
  * Convert an image to a series of `setblock` commands.
@@ -26,7 +26,7 @@ export default async function img2mcfunction(
   for (let z = 0; z < len; z++) {
     const img = frames[z];
     for (const [x, y, c] of img.iterateWithColors()) {
-      const [r, g, b, a] = imagescript.Image.colorToRGBA(c);
+      const [r, g, b, a] = Image.colorToRGBA(c);
 
       if (a < 128) {
         continue;

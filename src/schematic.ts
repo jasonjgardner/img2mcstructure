@@ -1,9 +1,9 @@
-import type { Axis, IBlock } from "../types.ts";
-import * as nbt from "nbtify";
-import * as imagescript from "imagescript";
-import { DEFAULT_BLOCK, MASK_BLOCK } from "../_constants.ts";
-import { getNearestColor } from "../_lib.ts";
-import decode from "../_decode.ts";
+import type { Axis, IBlock } from "./types.js";
+import { write, parse } from "nbtify";
+import { Image, GIF, Frame } from "imagescript";
+import { DEFAULT_BLOCK, MASK_BLOCK } from "./_constants.js";
+import { getNearestColor } from "./_lib.js";
+import decode from "./_decode.js";
 
 export type PaletteBlock = string;
 
@@ -38,7 +38,7 @@ export interface ISchematicTag {
  * @returns Nearest, masked, or default block
  */
 function convertBlock(c: number, palette: IBlock[]): PaletteBlock {
-  const [r, g, b, a] = imagescript.Image.colorToRGBA(c);
+  const [r, g, b, a] = Image.colorToRGBA(c);
 
   if (a < 128) {
     return MASK_BLOCK;
@@ -65,9 +65,9 @@ function findBlock(
 }
 
 export function constructDecoded(
-  frames: imagescript.GIF | Array<imagescript.Image | imagescript.Frame>,
+  frames: GIF | Array<Image | Frame>,
   palette: IBlock[],
-  axis: Axis = "x",
+  _axis: Axis = "x",
 ): ISchematicTag {
   /**
    * Structure size (X, Y, Z)
@@ -91,7 +91,7 @@ export function constructDecoded(
   for (let z = 0; z < depth; z++) {
     const img = frames[z];
 
-    for (const [x, y, c] of img.iterateWithColors()) {
+    for (const [_x, _y, c] of img.iterateWithColors()) {
       let [nearest, blockIdx] = memo.get(c) ??
         findBlock(c, palette, blockPalette);
 
@@ -121,15 +121,15 @@ export function constructDecoded(
 }
 
 export async function createSchematic(
-  frames: imagescript.GIF | Array<imagescript.Image | imagescript.Frame>,
+  frames: GIF | Array<Image | Frame>,
   palette: IBlock[],
   axis: Axis = "x",
-  name = "img2schematic",
+  _name = "img2schematic",
 ): Promise<Uint8Array> {
   const decoded = constructDecoded(frames, palette, axis);
   const structure = JSON.stringify(decoded, null, 2);
 
-  return await nbt.write(nbt.parse(structure), {
+  return await write(parse(structure), {
     //name,
     endian: "big",
     compression: null,

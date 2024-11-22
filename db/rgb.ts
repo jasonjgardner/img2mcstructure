@@ -1,5 +1,6 @@
-import type { IBlock } from "../src/types.ts";
-import { BLOCK_VERSION } from "../src/_constants.ts";
+import { Int32 } from "nbtify";
+import type { IBlock } from "../src/types.js";
+import { BLOCK_VERSION } from "../src/_constants.js";
 export default [{
   color: [255, 255, 255],
   hexColor: "#ffffff",
@@ -7,7 +8,7 @@ export default [{
   states: {
     "rgb:permute": 0,
   },
-  version: BLOCK_VERSION,
+  version: new Int32(BLOCK_VERSION),
 }, {
   color: [255, 0, 0],
   hexColor: "#ff0000",
@@ -15,7 +16,7 @@ export default [{
   states: {
     "rgb:permute": 1,
   },
-  version: BLOCK_VERSION,
+  version: new Int32(BLOCK_VERSION),
 }, {
   color: [0, 255, 0],
   hexColor: "#00ff00",
@@ -23,7 +24,7 @@ export default [{
   states: {
     "rgb:permute": 2,
   },
-  version: BLOCK_VERSION,
+  version: new Int32(BLOCK_VERSION),
 }, {
   color: [0, 0, 255],
   hexColor: "#0000ff",
@@ -31,7 +32,7 @@ export default [{
   states: {
     "rgb:permute": 3,
   },
-  version: BLOCK_VERSION,
+  version: new Int32(BLOCK_VERSION),
 }, {
   color: [255, 255, 0],
   hexColor: "#ffff00",
@@ -39,7 +40,7 @@ export default [{
   states: {
     "rgb:permute": 4,
   },
-  version: BLOCK_VERSION,
+  version: new Int32(BLOCK_VERSION),
 }, {
   color: [0, 255, 255],
   hexColor: "#00ffff",
@@ -47,7 +48,7 @@ export default [{
   states: {
     "rgb:permute": 5,
   },
-  version: BLOCK_VERSION,
+  version: new Int32(BLOCK_VERSION),
 }, {
   color: [255, 0, 255],
   hexColor: "#ff00ff",
@@ -55,7 +56,7 @@ export default [{
   states: {
     "rgb:permute": 6,
   },
-  version: BLOCK_VERSION,
+  version: new Int32(BLOCK_VERSION),
 }, {
   color: [0, 0, 0],
   hexColor: "#000000",
@@ -63,5 +64,5 @@ export default [{
   states: {
     "rgb:permute": 7,
   },
-  version: BLOCK_VERSION,
+  version: new Int32(BLOCK_VERSION),
 }] as IBlock[];

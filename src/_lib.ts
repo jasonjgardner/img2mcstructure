@@ -1,4 +1,4 @@
-import type { IBlock, PaletteSource, RGB } from "./types.ts";
+import type { IBlock, PaletteSource, RGB } from "./types.js";
 import { readFile } from "node:fs/promises";
 export function compareStates(
   a: Record<string, unknown>,

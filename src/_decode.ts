@@ -1,6 +1,6 @@
 import { type Frame, GIF, Image } from "imagescript";
 import { readFile } from "node:fs/promises";
-import { MAX_HEIGHT, MAX_WIDTH } from "./_constants.ts";
+import { MAX_HEIGHT, MAX_WIDTH } from "./_constants.js";
 
 export type DecodedFrames = GIF | Array<Image | Frame>;
 
