@@ -616,11 +616,24 @@ async function decodeImageInWorker(
         previousImageData = ctx.getImageData(0, 0, gifWidth, gifHeight);
       }
 
-      const frameImageData = new ImageData(
-        new Uint8ClampedArray(patch),
-        dims.width,
-        dims.height
-      );
+      // Validate patch size matches expected dimensions to avoid "Invalid array length" errors
+      const expectedSize = dims.width * dims.height * 4;
+      let frameData: Uint8ClampedArray;
+
+      if (patch.length === expectedSize) {
+        frameData = new Uint8ClampedArray(patch);
+      } else {
+        // Patch size doesn't match - create properly sized array and copy available data
+        frameData = new Uint8ClampedArray(expectedSize);
+        frameData.set(patch.subarray(0, Math.min(patch.length, expectedSize)));
+      }
+
+      // Skip frames with invalid dimensions
+      if (dims.width <= 0 || dims.height <= 0) {
+        continue;
+      }
+
+      const frameImageData = new ImageData(frameData, dims.width, dims.height);
 
       ctx.putImageData(frameImageData, dims.left, dims.top);
 
