@@ -357,7 +357,7 @@ function parseVox(data) {
   return result;
 }
 async function serializeNbt(data, options) {
-  const nbt = await import("nbtify");
+  const nbt = await import("https://esm.sh/nbtify@1.90.1");
   const structure = JSON.stringify(data);
   return await nbt.write(nbt.parse(structure), {
     name: options.name,
