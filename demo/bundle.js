@@ -724,16 +724,24 @@ async function img2mcaddon(input, options = {}) {
   const aspectRatio = imageHeight / imageWidth;
   const gridSizeX = gridSize;
   const gridSizeY = Math.max(1, Math.round(gridSize * aspectRatio));
-  const cropSizeX = Math.min(resolution, Math.round(imageWidth / gridSizeX));
-  const cropSizeY = Math.min(resolution, Math.round(imageHeight / gridSizeY));
-  const resizeToX = gridSizeX * cropSizeX;
-  const resizeToY = gridSizeY * cropSizeY;
+  const workingWidth = gridSizeX * resolution;
+  const workingHeight = gridSizeY * resolution;
   const canvas = document.createElement("canvas");
-  canvas.width = resizeToX;
-  canvas.height = resizeToY;
+  canvas.width = workingWidth;
+  canvas.height = workingHeight;
   const ctx = canvas.getContext("2d");
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(img, 0, 0, resizeToX, resizeToY);
+  ctx.drawImage(img, 0, 0, workingWidth, workingHeight);
+  function resizeFrameForSlicing(frame) {
+    const frameCanvas = renderFrameToCanvas(frame);
+    const resizedCanvas = document.createElement("canvas");
+    resizedCanvas.width = workingWidth;
+    resizedCanvas.height = workingHeight;
+    const resizedCtx = resizedCanvas.getContext("2d");
+    resizedCtx.imageSmoothingEnabled = false;
+    resizedCtx.drawImage(frameCanvas, 0, 0, workingWidth, workingHeight);
+    return resizedCanvas;
+  }
   const terrainData = {};
   const blocksData = {};
   const blockPalette = [];
@@ -743,20 +751,21 @@ async function img2mcaddon(input, options = {}) {
   const flipbookTextures = [];
   if (useFlipbook) {
     const tickSpeed = 10;
+    const resizedFrames = decodedFrames.map((frame) => resizeFrameForSlicing(frame));
     for (let x = 0;x < gridSizeX; x++) {
       for (let y = 0;y < gridSizeY; y++) {
         const sliceId = `${namespace}_${x}_${y}_0`;
-        const xPos = x * cropSizeX;
-        const yPos = y * cropSizeY;
+        const xPos = x * resolution;
+        const yPos = y * resolution;
         const atlasCanvas = document.createElement("canvas");
         atlasCanvas.width = resolution;
         atlasCanvas.height = resolution * decodedFrames.length;
         const atlasCtx = atlasCanvas.getContext("2d");
         atlasCtx.imageSmoothingEnabled = false;
         let totalR = 0, totalG = 0, totalB = 0;
-        for (let frameIdx = 0;frameIdx < decodedFrames.length; frameIdx++) {
-          const frameCanvas = renderFrameToCanvas(decodedFrames[frameIdx]);
-          atlasCtx.drawImage(frameCanvas, xPos, yPos, cropSizeX, cropSizeY, 0, frameIdx * resolution, resolution, resolution);
+        for (let frameIdx = 0;frameIdx < resizedFrames.length; frameIdx++) {
+          const frameCanvas = resizedFrames[frameIdx];
+          atlasCtx.drawImage(frameCanvas, xPos, yPos, resolution, resolution, 0, frameIdx * resolution, resolution, resolution);
           if (frameIdx === 0) {
             const sliceData = atlasCtx.getImageData(0, 0, resolution, resolution);
             for (let i = 0;i < sliceData.data.length; i += 4) {
@@ -804,13 +813,13 @@ async function img2mcaddon(input, options = {}) {
     addon.file("rp/textures/flipbook_textures.json", JSON.stringify(flipbookTextures, null, 2));
   } else {
     for (let z = 0;z < depth; z++) {
-      const frameCanvas = renderFrameToCanvas(decodedFrames[z]);
+      const frameCanvas = resizeFrameForSlicing(decodedFrames[z]);
       for (let x = 0;x < gridSizeX; x++) {
         for (let y = 0;y < gridSizeY; y++) {
           const sliceId = `${namespace}_${x}_${y}_${z}`;
-          const xPos = x * cropSizeX;
-          const yPos = y * cropSizeY;
-          const { blob, avgColor } = await sliceImage(frameCanvas, xPos, yPos, cropSizeX, cropSizeY, resolution);
+          const xPos = x * resolution;
+          const yPos = y * resolution;
+          const { blob, avgColor } = await sliceImage(frameCanvas, xPos, yPos, resolution, resolution, resolution);
           addon.file(`bp/blocks/${sliceId}.block.json`, createBlockJson(namespace, sliceId, avgColor));
           addon.file(`rp/textures/blocks/${sliceId}.png`, await blob.arrayBuffer());
           addon.file(`rp/textures/blocks/${sliceId}.texture_set.json`, JSON.stringify({
@@ -3007,6 +3016,7 @@ var currentVoxFile = null;
 var lastResult = null;
 var lastFormat = "";
 var inputType = "image";
+var previewAnimationId = null;
 var editableBlocks = [];
 var currentBasePalette = "minecraft";
 var customPalettes = new Map;
@@ -3014,24 +3024,90 @@ function setStatus(message, type = "info") {
   statusEl.textContent = message;
   statusEl.className = `status ${type}`;
 }
+function stopPreviewAnimation() {
+  if (previewAnimationId !== null) {
+    cancelAnimationFrame(previewAnimationId);
+    previewAnimationId = null;
+  }
+}
+function isGifFile(file) {
+  return file.type === "image/gif" || file.name.toLowerCase().endsWith(".gif");
+}
+function calculateScaledDimensions(width, height, maxSize) {
+  if (width > maxSize || height > maxSize) {
+    if (width > height) {
+      height = height / width * maxSize;
+      width = maxSize;
+    } else {
+      width = width / height * maxSize;
+      height = maxSize;
+    }
+  }
+  return { width: Math.round(width), height: Math.round(height) };
+}
 async function previewImage(file) {
+  stopPreviewAnimation();
+  const ctx = previewCanvas.getContext("2d");
+  const maxSize = 256;
+  if (isGifFile(file)) {
+    try {
+      let animate = function(timestamp) {
+        if (timestamp - lastFrameTime >= frameDelay) {
+          ctx.clearRect(0, 0, width, height);
+          ctx.drawImage(frameCanvases[currentFrame], 0, 0, width, height);
+          currentFrame = (currentFrame + 1) % frameCanvases.length;
+          lastFrameTime = timestamp;
+        }
+        previewAnimationId = requestAnimationFrame(animate);
+      };
+      const frames = await decodeFile(file);
+      if (frames.length === 0) {
+        setStatus("No frames found in GIF", "error");
+        return;
+      }
+      const { width, height } = calculateScaledDimensions(frames[0].width, frames[0].height, maxSize);
+      previewCanvas.width = width;
+      previewCanvas.height = height;
+      ctx.imageSmoothingEnabled = false;
+      if (frames.length === 1) {
+        const imageData = new ImageData(new Uint8ClampedArray(frames[0].data), frames[0].width, frames[0].height);
+        const tempCanvas = document.createElement("canvas");
+        tempCanvas.width = frames[0].width;
+        tempCanvas.height = frames[0].height;
+        const tempCtx = tempCanvas.getContext("2d");
+        tempCtx.putImageData(imageData, 0, 0);
+        ctx.drawImage(tempCanvas, 0, 0, width, height);
+        return;
+      }
+      const frameCanvases = frames.map((frame) => {
+        const frameCanvas = document.createElement("canvas");
+        frameCanvas.width = frame.width;
+        frameCanvas.height = frame.height;
+        const frameCtx = frameCanvas.getContext("2d");
+        const imageData = new ImageData(new Uint8ClampedArray(frame.data), frame.width, frame.height);
+        frameCtx.putImageData(imageData, 0, 0);
+        return frameCanvas;
+      });
+      let currentFrame = 0;
+      const frameDelay = 100;
+      let lastFrameTime = 0;
+      previewAnimationId = requestAnimationFrame(animate);
+    } catch (error) {
+      console.error("Failed to decode GIF:", error);
+      previewStaticImage(file);
+    }
+  } else {
+    previewStaticImage(file);
+  }
+}
+function previewStaticImage(file) {
   const reader = new FileReader;
   reader.onload = (e) => {
     const img = new Image;
     img.onload = () => {
       const ctx = previewCanvas.getContext("2d");
       const maxSize = 256;
-      let width = img.width;
-      let height = img.height;
-      if (width > maxSize || height > maxSize) {
-        if (width > height) {
-          height = height / width * maxSize;
-          width = maxSize;
-        } else {
-          width = width / height * maxSize;
-          height = maxSize;
-        }
-      }
+      const { width, height } = calculateScaledDimensions(img.width, img.height, maxSize);
       previewCanvas.width = width;
       previewCanvas.height = height;
       ctx.imageSmoothingEnabled = false;
@@ -3534,6 +3610,7 @@ function toggleMcaddonOptions() {
   }
 }
 function handleVoxFile(file) {
+  stopPreviewAnimation();
   currentVoxFile = file;
   currentFile = null;
   inputType = "vox";

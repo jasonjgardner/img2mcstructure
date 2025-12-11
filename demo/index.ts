@@ -78,6 +78,7 @@ let currentVoxFile: File | null = null;
 let lastResult: Uint8Array | string | null = null;
 let lastFormat: string = "";
 let inputType: "image" | "vox" = "image";
+let previewAnimationId: number | null = null;
 
 // Palette Editor State
 let editableBlocks: EditableBlock[] = [];
@@ -89,27 +90,143 @@ function setStatus(message: string, type: "info" | "success" | "error" = "info")
   statusEl.className = `status ${type}`;
 }
 
+/**
+ * Stop any running preview animation
+ */
+function stopPreviewAnimation() {
+  if (previewAnimationId !== null) {
+    cancelAnimationFrame(previewAnimationId);
+    previewAnimationId = null;
+  }
+}
+
+/**
+ * Check if a file is a GIF by its extension or MIME type
+ */
+function isGifFile(file: File): boolean {
+  return file.type === "image/gif" || file.name.toLowerCase().endsWith(".gif");
+}
+
+/**
+ * Calculate scaled dimensions to fit within maxSize while preserving aspect ratio
+ */
+function calculateScaledDimensions(
+  width: number,
+  height: number,
+  maxSize: number
+): { width: number; height: number } {
+  if (width > maxSize || height > maxSize) {
+    if (width > height) {
+      height = (height / width) * maxSize;
+      width = maxSize;
+    } else {
+      width = (width / height) * maxSize;
+      height = maxSize;
+    }
+  }
+  return { width: Math.round(width), height: Math.round(height) };
+}
+
 async function previewImage(file: File) {
+  // Stop any existing animation
+  stopPreviewAnimation();
+
+  const ctx = previewCanvas.getContext("2d")!;
+  const maxSize = 256;
+
+  // Check if it's a GIF - if so, decode and animate
+  if (isGifFile(file)) {
+    try {
+      const frames = await decodeFile(file);
+
+      if (frames.length === 0) {
+        setStatus("No frames found in GIF", "error");
+        return;
+      }
+
+      // Get dimensions from first frame
+      const { width, height } = calculateScaledDimensions(
+        frames[0].width,
+        frames[0].height,
+        maxSize
+      );
+
+      previewCanvas.width = width;
+      previewCanvas.height = height;
+      ctx.imageSmoothingEnabled = false;
+
+      // If only one frame, just display it
+      if (frames.length === 1) {
+        const imageData = new ImageData(
+          new Uint8ClampedArray(frames[0].data),
+          frames[0].width,
+          frames[0].height
+        );
+        // Create temp canvas for the frame and scale it
+        const tempCanvas = document.createElement("canvas");
+        tempCanvas.width = frames[0].width;
+        tempCanvas.height = frames[0].height;
+        const tempCtx = tempCanvas.getContext("2d")!;
+        tempCtx.putImageData(imageData, 0, 0);
+        ctx.drawImage(tempCanvas, 0, 0, width, height);
+        return;
+      }
+
+      // Pre-render all frames to canvases for smoother animation
+      const frameCanvases = frames.map((frame) => {
+        const frameCanvas = document.createElement("canvas");
+        frameCanvas.width = frame.width;
+        frameCanvas.height = frame.height;
+        const frameCtx = frameCanvas.getContext("2d")!;
+        const imageData = new ImageData(
+          new Uint8ClampedArray(frame.data),
+          frame.width,
+          frame.height
+        );
+        frameCtx.putImageData(imageData, 0, 0);
+        return frameCanvas;
+      });
+
+      // Animate frames
+      let currentFrame = 0;
+      const frameDelay = 100; // ~10 fps, standard GIF timing
+      let lastFrameTime = 0;
+
+      function animate(timestamp: number) {
+        if (timestamp - lastFrameTime >= frameDelay) {
+          ctx.clearRect(0, 0, width, height);
+          ctx.drawImage(frameCanvases[currentFrame], 0, 0, width, height);
+          currentFrame = (currentFrame + 1) % frameCanvases.length;
+          lastFrameTime = timestamp;
+        }
+        previewAnimationId = requestAnimationFrame(animate);
+      }
+
+      // Start animation
+      previewAnimationId = requestAnimationFrame(animate);
+
+    } catch (error) {
+      console.error("Failed to decode GIF:", error);
+      // Fall back to static preview
+      previewStaticImage(file);
+    }
+  } else {
+    // Non-GIF: use static preview
+    previewStaticImage(file);
+  }
+}
+
+/**
+ * Preview a static (non-animated) image
+ */
+function previewStaticImage(file: File) {
   const reader = new FileReader();
   reader.onload = (e) => {
     const img = new Image();
     img.onload = () => {
       const ctx = previewCanvas.getContext("2d")!;
-
-      // Scale to fit canvas while maintaining aspect ratio
       const maxSize = 256;
-      let width = img.width;
-      let height = img.height;
-
-      if (width > maxSize || height > maxSize) {
-        if (width > height) {
-          height = (height / width) * maxSize;
-          width = maxSize;
-        } else {
-          width = (width / height) * maxSize;
-          height = maxSize;
-        }
-      }
+      const { width, height } = calculateScaledDimensions(img.width, img.height, maxSize);
 
       previewCanvas.width = width;
       previewCanvas.height = height;
@@ -768,6 +885,9 @@ function toggleMcaddonOptions() {
 
 // Handle VOX file selection
 function handleVoxFile(file: File) {
+  // Stop any GIF animation
+  stopPreviewAnimation();
+
   currentVoxFile = file;
   currentFile = null;
   inputType = "vox";
