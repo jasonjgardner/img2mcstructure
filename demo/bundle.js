@@ -22,7 +22,7 @@ var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require
   throw Error('Dynamic require of "' + x + '" is not supported');
 });
 
-// ../src/client/constants.ts
+// src/client/constants.ts
 var BLOCK_VERSION = 18153475;
 var NBT_DATA_VERSION = 3953;
 var BLOCK_FORMAT_VERSION = "1.20.80";
@@ -32,7 +32,7 @@ var MAX_HEIGHT = 256;
 var MAX_WIDTH = 256;
 var MAX_DEPTH = 256;
 
-// ../src/client/decode.ts
+// src/client/decode.ts
 function createImageFrame(imageData) {
   const { width, height, data } = imageData;
   return {
@@ -126,7 +126,7 @@ async function decodeFile(file, options = {}) {
   return decode(buffer, options);
 }
 
-// ../src/client/lib.ts
+// src/client/lib.ts
 function compareStates(a, b) {
   return Object.keys(a).length === Object.keys(b).length && Object.entries(a).sort().toString() === Object.entries(b).sort().toString();
 }
@@ -146,7 +146,7 @@ function rgb2hex(rgb) {
   return `#${rgb[0].toString(16).padStart(2, "0")}${rgb[1].toString(16).padStart(2, "0")}${rgb[2].toString(16).padStart(2, "0")}`;
 }
 
-// ../src/client/palette.ts
+// src/client/palette.ts
 function createPalette(db) {
   const blockPalette = [];
   for (const idx in db) {
@@ -169,7 +169,7 @@ function createPalette(db) {
   return blockPalette;
 }
 
-// ../src/client/rotate.ts
+// src/client/rotate.ts
 function rotateOverY(structure) {
   const {
     size,
@@ -243,7 +243,7 @@ function rotateStructure(structure, axis) {
   return rotateOverX(structure);
 }
 
-// ../src/client/mcstructure.ts
+// src/client/mcstructure.ts
 function convertBlock(c, palette) {
   const [r, g, b, a] = colorToRGBA(c);
   if (a < 128) {
@@ -338,7 +338,7 @@ async function img2mcstructure(input, options) {
   const blockPalette = Array.isArray(palette) ? palette : createPalette(palette);
   return await createMcStructure(img, blockPalette, axis, name);
 }
-// ../src/client/mcfunction.ts
+// src/client/mcfunction.ts
 function framesToMcfunction(frames, blocks, offset = [0, 0, 0]) {
   const len = Math.min(MAX_DEPTH, frames.length);
   const lines = [];
@@ -362,7 +362,7 @@ async function img2mcfunction(input, options) {
   const blockPalette = Array.isArray(palette) ? palette : createPalette(palette);
   return framesToMcfunction(frames, blockPalette, offset);
 }
-// ../src/client/schematic.ts
+// src/client/schematic.ts
 function convertBlock2(c, palette) {
   const [r, g, b, a] = colorToRGBA(c);
   if (a < 128) {
@@ -434,7 +434,7 @@ async function img2schematic(input, options) {
   const blockPalette = Array.isArray(palette) ? palette : createPalette(palette);
   return await createSchematic(img, blockPalette, axis, name);
 }
-// ../src/client/nbt.ts
+// src/client/nbt.ts
 function convertBlock3(c, palette) {
   const [r, g, b, a] = colorToRGBA(c);
   if (a < 128) {
@@ -510,7 +510,7 @@ async function img2nbt(input, options) {
   const blockPalette = Array.isArray(palette) ? palette : createPalette(palette);
   return await createNbtStructure(img, blockPalette, axis);
 }
-// ../src/client/mcaddon.ts
+// src/client/mcaddon.ts
 function getAverageColor(imageData) {
   const { data, width, height } = imageData;
   let r = 0, g = 0, b = 0;
@@ -575,12 +575,20 @@ function generateId(length = 7) {
   return result;
 }
 function rotateVolume(volume, axis) {
-  const rotatedVolume = volume.map((z) => z.map((y) => y.map(() => -1)));
   const depth = volume.length;
-  const gridSize = volume[0].length;
+  const gridSizeX = volume[0].length;
+  const gridSizeY = volume[0][0].length;
+  let rotatedVolume;
+  if (axis === "y") {
+    rotatedVolume = Array.from({ length: depth }, () => Array.from({ length: gridSizeY }, () => Array(gridSizeX).fill(-1)));
+  } else if (axis === "x") {
+    rotatedVolume = Array.from({ length: gridSizeX }, () => Array.from({ length: depth }, () => Array(gridSizeY).fill(-1)));
+  } else {
+    rotatedVolume = Array.from({ length: depth }, () => Array.from({ length: gridSizeX }, () => Array(gridSizeY).fill(-1)));
+  }
   for (let z = 0;z < depth; z++) {
-    for (let x = 0;x < gridSize; x++) {
-      for (let y = 0;y < gridSize; y++) {
+    for (let x = 0;x < gridSizeX; x++) {
+      for (let y = 0;y < gridSizeY; y++) {
         const blockIdx = volume[z][x][y];
         if (axis === "y") {
           rotatedVolume[z][y][x] = blockIdx;
@@ -643,25 +651,32 @@ async function img2mcaddon(input, options = {}) {
   const img = await loadImageElement(input);
   const baseName = input instanceof File ? input.name.replace(/\.[^.]+$/, "") : `mosaic_${jobId}`;
   const namespace = baseName.replace(/\W/g, "_").substring(0, 16).toLowerCase();
-  const cropSize = Math.min(resolution, Math.round(img.width / gridSize));
-  const resizeTo = gridSize * cropSize;
+  const imageWidth = img.width;
+  const imageHeight = img.height;
+  const aspectRatio = imageHeight / imageWidth;
+  const gridSizeX = gridSize;
+  const gridSizeY = Math.max(1, Math.round(gridSize * aspectRatio));
+  const cropSizeX = Math.min(resolution, Math.round(imageWidth / gridSizeX));
+  const cropSizeY = Math.min(resolution, Math.round(imageHeight / gridSizeY));
+  const resizeToX = gridSizeX * cropSizeX;
+  const resizeToY = gridSizeY * cropSizeY;
   const canvas = document.createElement("canvas");
-  canvas.width = resizeTo;
-  canvas.height = resizeTo;
+  canvas.width = resizeToX;
+  canvas.height = resizeToY;
   const ctx = canvas.getContext("2d");
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(img, 0, 0, resizeTo, resizeTo);
+  ctx.drawImage(img, 0, 0, resizeToX, resizeToY);
   const terrainData = {};
   const blocksData = {};
   const blockPalette = [];
   const depth = 1;
-  const volume = Array.from({ length: depth }, () => Array.from({ length: gridSize }, () => Array(gridSize).fill(-1)));
-  for (let x = 0;x < gridSize; x++) {
-    for (let y = 0;y < gridSize; y++) {
+  const volume = Array.from({ length: depth }, () => Array.from({ length: gridSizeX }, () => Array(gridSizeY).fill(-1)));
+  for (let x = 0;x < gridSizeX; x++) {
+    for (let y = 0;y < gridSizeY; y++) {
       const sliceId = `${namespace}_${x}_${y}_0`;
-      const xPos = x * cropSize;
-      const yPos = y * cropSize;
-      const { blob, avgColor } = await sliceImage(canvas, xPos, yPos, cropSize, cropSize, resolution);
+      const xPos = x * cropSizeX;
+      const yPos = y * cropSizeY;
+      const { blob, avgColor } = await sliceImage(canvas, xPos, yPos, cropSizeX, cropSizeY, resolution);
       addon.file(`bp/blocks/${sliceId}.block.json`, createBlockJson(namespace, sliceId, avgColor));
       addon.file(`rp/textures/blocks/${sliceId}.png`, await blob.arrayBuffer());
       addon.file(`rp/textures/blocks/${sliceId}.texture_set.json`, JSON.stringify({
@@ -704,7 +719,7 @@ async function img2mcaddon(input, options = {}) {
     texture_data: terrainData
   }, null, 2));
   const rotatedVolume = rotateVolume(volume, axis);
-  const size = axis === "y" ? [gridSize, depth, gridSize] : [gridSize, gridSize, depth];
+  const size = axis === "y" ? [gridSizeX, depth, gridSizeY] : [gridSizeX, gridSizeY, depth];
   const flatVolume = rotatedVolume.flat(2);
   const waterLayer = Array.from({ length: flatVolume.length }, () => -1);
   const tag = {
@@ -790,7 +805,7 @@ async function img2mcaddon(input, options = {}) {
   }, null, 2));
   return await addon.generateAsync({ type: "uint8array" });
 }
-// ../src/client/vox.ts
+// src/client/vox.ts
 function readInt32(view, offset) {
   return view.getInt32(offset, true);
 }
@@ -1006,7 +1021,7 @@ async function vox2mcstructure(input, options) {
   });
 }
 
-// ../src/client/mod.ts
+// src/client/mod.ts
 function downloadBlob(data, filename, mimeType = "application/octet-stream") {
   const blob = new Blob([data], { type: mimeType });
   const url = URL.createObjectURL(blob);
@@ -1034,7 +1049,7 @@ function downloadMcaddon(data, filename = "addon.mcaddon") {
   downloadBlob(data, filename, "application/zip");
 }
 
-// ../db/rainbow.json
+// db/rainbow.json
 var rainbow_default = {
   "rainbow:blue_50_block": "#e5e8f4",
   "rainbow:blue_50_plate": "#e5e8f4",
@@ -1878,7 +1893,7 @@ var rainbow_default = {
   "rainbow:yellow_900_glass": "#201b0b"
 };
 
-// ../db/rainbow_glass.json
+// db/rainbow_glass.json
 var rainbow_glass_default = {
   "rainbow:blue_50_glass": "#e5e8f4",
   "rainbow:blue_100_glass": "#cbd2e8",
@@ -2022,7 +2037,7 @@ var rainbow_glass_default = {
   "rainbow:yellow_900_glass": "#201b0b"
 };
 
-// ../db/rainbow_lit.json
+// db/rainbow_lit.json
 var rainbow_lit_default = {
   "rainbow:blue_50_lit": "#e5e8f4",
   "rainbow:blue_50_lamp": "#e5e8f4",
@@ -2447,7 +2462,7 @@ var rainbow_lit_default = {
   "rainbow:yellow_900_glass": "#201b0b"
 };
 
-// ../db/rainbow_metal.json
+// db/rainbow_metal.json
 var rainbow_metal_default = {
   "rainbow:blue_50_plate": "#e5e8f4",
   "rainbow:blue_100_plate": "#cbd2e8",
@@ -2592,7 +2607,7 @@ var rainbow_metal_default = {
   "rainbow:yellow_900_glass": "#201b0b"
 };
 
-// palettes.ts
+// demo/palettes.ts
 var minecraftPalette = {
   "minecraft:black_wool": "#1a1c1c",
   "minecraft:blue_wool": "#3c44a4",
@@ -2827,7 +2842,7 @@ var palettes = {
   rainbowMetal: rainbowMetalPalette
 };
 
-// index.ts
+// demo/index.ts
 var CUSTOM_PALETTES_STORAGE_KEY = "img2mcstructure_custom_palettes";
 var imageInput;
 var voxInput;

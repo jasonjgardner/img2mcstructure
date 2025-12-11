@@ -130,14 +130,29 @@ function generateId(length = 7): string {
  * Rotate volume array based on axis
  */
 function rotateVolume(volume: number[][][], axis: Axis): number[][][] {
-  const rotatedVolume = volume.map((z) => z.map((y) => y.map(() => -1)));
-
   const depth = volume.length;
-  const gridSize = volume[0].length;
+  const gridSizeX = volume[0].length;
+  const gridSizeY = volume[0][0].length;
+
+  // Create rotated volume with appropriate dimensions based on axis
+  let rotatedVolume: number[][][];
+  if (axis === "y") {
+    rotatedVolume = Array.from({ length: depth }, () =>
+      Array.from({ length: gridSizeY }, () => Array(gridSizeX).fill(-1))
+    );
+  } else if (axis === "x") {
+    rotatedVolume = Array.from({ length: gridSizeX }, () =>
+      Array.from({ length: depth }, () => Array(gridSizeY).fill(-1))
+    );
+  } else {
+    rotatedVolume = Array.from({ length: depth }, () =>
+      Array.from({ length: gridSizeX }, () => Array(gridSizeY).fill(-1))
+    );
+  }
 
   for (let z = 0; z < depth; z++) {
-    for (let x = 0; x < gridSize; x++) {
-      for (let y = 0; y < gridSize; y++) {
+    for (let x = 0; x < gridSizeX; x++) {
+      for (let y = 0; y < gridSizeY; y++) {
         const blockIdx = volume[z][x][y];
         if (axis === "y") {
           rotatedVolume[z][y][x] = blockIdx;
@@ -252,17 +267,28 @@ export default async function img2mcaddon(
 
   const namespace = baseName.replace(/\W/g, "_").substring(0, 16).toLowerCase();
 
-  // Calculate crop size
-  const cropSize = Math.min(resolution, Math.round(img.width / gridSize));
+  // Calculate grid dimensions based on image aspect ratio
+  const imageWidth = img.width;
+  const imageHeight = img.height;
+  const aspectRatio = imageHeight / imageWidth;
 
-  // Resize image to match grid
-  const resizeTo = gridSize * cropSize;
+  // gridSize is used for the X dimension, calculate Y based on aspect ratio
+  const gridSizeX = gridSize;
+  const gridSizeY = Math.max(1, Math.round(gridSize * aspectRatio));
+
+  // Calculate crop sizes for each dimension
+  const cropSizeX = Math.min(resolution, Math.round(imageWidth / gridSizeX));
+  const cropSizeY = Math.min(resolution, Math.round(imageHeight / gridSizeY));
+
+  // Resize image to match grid (preserving aspect ratio)
+  const resizeToX = gridSizeX * cropSizeX;
+  const resizeToY = gridSizeY * cropSizeY;
   const canvas = document.createElement("canvas");
-  canvas.width = resizeTo;
-  canvas.height = resizeTo;
+  canvas.width = resizeToX;
+  canvas.height = resizeToY;
   const ctx = canvas.getContext("2d")!;
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(img, 0, 0, resizeTo, resizeTo);
+  ctx.drawImage(img, 0, 0, resizeToX, resizeToY);
 
   // Data structures
   const terrainData: Record<string, { textures: string }> = {};
@@ -272,23 +298,23 @@ export default async function img2mcaddon(
   const depth = 1;
   const volume: number[][][] = Array.from(
     { length: depth },
-    () => Array.from({ length: gridSize }, () => Array(gridSize).fill(-1)),
+    () => Array.from({ length: gridSizeX }, () => Array(gridSizeY).fill(-1)),
   );
 
   // Process each grid cell
-  for (let x = 0; x < gridSize; x++) {
-    for (let y = 0; y < gridSize; y++) {
+  for (let x = 0; x < gridSizeX; x++) {
+    for (let y = 0; y < gridSizeY; y++) {
       const sliceId = `${namespace}_${x}_${y}_0`;
-      const xPos = x * cropSize;
-      const yPos = y * cropSize;
+      const xPos = x * cropSizeX;
+      const yPos = y * cropSizeY;
 
       // Slice the image
       const { blob, avgColor } = await sliceImage(
         canvas,
         xPos,
         yPos,
-        cropSize,
-        cropSize,
+        cropSizeX,
+        cropSizeY,
         resolution,
       );
 
@@ -369,8 +395,8 @@ export default async function img2mcaddon(
   // Create and add the structure
   const rotatedVolume = rotateVolume(volume, axis);
   const size: [number, number, number] = axis === "y"
-    ? [gridSize, depth, gridSize]
-    : [gridSize, gridSize, depth];
+    ? [gridSizeX, depth, gridSizeY]
+    : [gridSizeX, gridSizeY, depth];
 
   const flatVolume = rotatedVolume.flat(2);
   const waterLayer = Array.from({ length: flatVolume.length }, () => -1);
