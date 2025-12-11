@@ -11,8 +11,7 @@ import type {
   IMcStructure,
   StructurePalette,
 } from "../types.ts";
-import { decodeFile, type ImageInput, type DecodeOptions, type DecodedFrames, type ImageFrame } from "./decode.ts";
-import decode from "./decode.ts";
+import decode, { decodeFile, type ImageInput, type DecodeOptions, type DecodedFrames, type ImageFrame } from "./decode.ts";
 import { BLOCK_VERSION, BLOCK_FORMAT_VERSION } from "./constants.ts";
 import { rgb2hex } from "./lib.ts";
 
@@ -28,6 +27,12 @@ export interface McaddonOptions {
   axis?: Axis;
   /** Decode options */
   decodeOptions?: DecodeOptions;
+  /**
+   * Frame handling mode:
+   * - 1 (default): Use multiple frames for depth (stacked layers)
+   * - >1: Create flipbook animation from frames
+   */
+  frames?: number;
 }
 
 /**
@@ -249,6 +254,7 @@ export default async function img2mcaddon(
     gridSize = 4,
     resolution = 16,
     axis = "z",
+    frames: framesMode = 1,
   } = options;
 
   // Dynamic import JSZip
@@ -257,8 +263,17 @@ export default async function img2mcaddon(
   const jobId = generateId(7);
   const addon = new JSZip();
 
-  // Load the image
-  const img = await loadImageElement(input);
+  // Decode the image (supports GIF animation frames)
+  let decodedFrames: DecodedFrames;
+  if (input instanceof File) {
+    decodedFrames = await decodeFile(input, options.decodeOptions);
+  } else {
+    decodedFrames = await decode(input, options.decodeOptions);
+  }
+
+  if (decodedFrames.length === 0) {
+    throw new Error("No frames found in image");
+  }
 
   // Get base name for the addon
   const baseName = input instanceof File
@@ -268,8 +283,8 @@ export default async function img2mcaddon(
   const namespace = baseName.replace(/\W/g, "_").substring(0, 16).toLowerCase();
 
   // Calculate grid dimensions based on image aspect ratio
-  const imageWidth = img.width;
-  const imageHeight = img.height;
+  const imageWidth = decodedFrames[0].width;
+  const imageHeight = decodedFrames[0].height;
   const aspectRatio = imageHeight / imageWidth;
 
   // gridSize is used for the X dimension, calculate Y based on aspect ratio
@@ -280,86 +295,226 @@ export default async function img2mcaddon(
   const cropSizeX = Math.min(resolution, Math.round(imageWidth / gridSizeX));
   const cropSizeY = Math.min(resolution, Math.round(imageHeight / gridSizeY));
 
-  // Resize image to match grid (preserving aspect ratio)
+  // Resize dimensions
   const resizeToX = gridSizeX * cropSizeX;
   const resizeToY = gridSizeY * cropSizeY;
-  const canvas = document.createElement("canvas");
-  canvas.width = resizeToX;
-  canvas.height = resizeToY;
-  const ctx = canvas.getContext("2d")!;
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(img, 0, 0, resizeToX, resizeToY);
 
   // Data structures
   const terrainData: Record<string, { textures: string }> = {};
   const blocksData: Record<string, { sound: string; isotropic: boolean }> = {};
   const blockPalette: StructurePalette = [];
 
-  const depth = 1;
+  // Determine if we're doing flipbook animation or depth-based structure
+  const useFlipbook = framesMode > 1 && decodedFrames.length > 1;
+  const depth = useFlipbook ? 1 : decodedFrames.length;
+
   const volume: number[][][] = Array.from(
     { length: depth },
     () => Array.from({ length: gridSizeX }, () => Array(gridSizeY).fill(-1)),
   );
 
-  // Process each grid cell
-  for (let x = 0; x < gridSizeX; x++) {
-    for (let y = 0; y < gridSizeY; y++) {
-      const sliceId = `${namespace}_${x}_${y}_0`;
-      const xPos = x * cropSizeX;
-      const yPos = y * cropSizeY;
+  // Helper to render a frame to canvas
+  function renderFrameToCanvas(frame: ImageFrame): HTMLCanvasElement {
+    const canvas = document.createElement("canvas");
+    canvas.width = resizeToX;
+    canvas.height = resizeToY;
+    const ctx = canvas.getContext("2d")!;
+    ctx.imageSmoothingEnabled = false;
 
-      // Slice the image
-      const { blob, avgColor } = await sliceImage(
-        canvas,
-        xPos,
-        yPos,
-        cropSizeX,
-        cropSizeY,
-        resolution,
-      );
+    // Create ImageData from the frame
+    const frameCanvas = document.createElement("canvas");
+    frameCanvas.width = frame.width;
+    frameCanvas.height = frame.height;
+    const frameCtx = frameCanvas.getContext("2d")!;
+    const imageData = new ImageData(
+      new Uint8ClampedArray(frame.data),
+      frame.width,
+      frame.height,
+    );
+    frameCtx.putImageData(imageData, 0, 0);
 
-      // Add block definition
-      addon.file(
-        `bp/blocks/${sliceId}.block.json`,
-        createBlockJson(namespace, sliceId, avgColor),
-      );
+    // Draw resized
+    ctx.drawImage(frameCanvas, 0, 0, resizeToX, resizeToY);
+    return canvas;
+  }
 
-      // Add texture
-      addon.file(
-        `rp/textures/blocks/${sliceId}.png`,
-        await blob.arrayBuffer(),
-      );
+  // Flipbook textures for animation mode
+  const flipbookTextures: Array<{
+    atlas_tile: string;
+    flipbook_texture: string;
+    ticks_per_frame: number;
+  }> = [];
 
-      // Add texture set
-      addon.file(
-        `rp/textures/blocks/${sliceId}.texture_set.json`,
-        JSON.stringify({
-          format_version: "1.16.100",
-          "minecraft:texture_set": {
-            color: sliceId,
-          },
-        }, null, 2),
-      );
+  if (useFlipbook) {
+    // Create flipbook animation - combine all frames into texture atlases
+    const tickSpeed = 10;
 
-      // Update terrain data
-      terrainData[`${namespace}_${sliceId}`] = {
-        textures: `textures/blocks/${sliceId}`,
-      };
+    for (let x = 0; x < gridSizeX; x++) {
+      for (let y = 0; y < gridSizeY; y++) {
+        const sliceId = `${namespace}_${x}_${y}_0`;
+        const xPos = x * cropSizeX;
+        const yPos = y * cropSizeY;
 
-      // Add to block palette
-      const blockIdx = blockPalette.push({
-        name: `${namespace}:${sliceId}`,
-        states: {},
-        version: BLOCK_VERSION,
-      }) - 1;
+        // Create vertical atlas from all frames
+        const atlasCanvas = document.createElement("canvas");
+        atlasCanvas.width = resolution;
+        atlasCanvas.height = resolution * decodedFrames.length;
+        const atlasCtx = atlasCanvas.getContext("2d")!;
+        atlasCtx.imageSmoothingEnabled = false;
 
-      volume[0][x][y] = blockIdx;
+        let totalR = 0, totalG = 0, totalB = 0;
 
-      // Add blocks.json data
-      blocksData[`${namespace}:${sliceId}`] = {
-        sound: "stone",
-        isotropic: false,
-      };
+        for (let frameIdx = 0; frameIdx < decodedFrames.length; frameIdx++) {
+          const frameCanvas = renderFrameToCanvas(decodedFrames[frameIdx]);
+
+          // Draw slice from this frame onto the atlas
+          atlasCtx.drawImage(
+            frameCanvas,
+            xPos, yPos, cropSizeX, cropSizeY,
+            0, frameIdx * resolution, resolution, resolution,
+          );
+
+          // Calculate average color from first frame for map color
+          if (frameIdx === 0) {
+            const sliceData = atlasCtx.getImageData(0, 0, resolution, resolution);
+            for (let i = 0; i < sliceData.data.length; i += 4) {
+              totalR += sliceData.data[i];
+              totalG += sliceData.data[i + 1];
+              totalB += sliceData.data[i + 2];
+            }
+          }
+        }
+
+        const pixelCount = resolution * resolution;
+        const avgColor = rgb2hex([
+          Math.round(totalR / pixelCount),
+          Math.round(totalG / pixelCount),
+          Math.round(totalB / pixelCount),
+        ]);
+
+        // Add block definition
+        addon.file(
+          `bp/blocks/${sliceId}.block.json`,
+          createBlockJson(namespace, sliceId, avgColor),
+        );
+
+        // Add atlas texture
+        const atlasBlob = await new Promise<Blob>((resolve) => {
+          atlasCanvas.toBlob((blob) => resolve(blob!), "image/png");
+        });
+        addon.file(
+          `rp/textures/blocks/${sliceId}.png`,
+          await atlasBlob.arrayBuffer(),
+        );
+
+        // Add texture set
+        addon.file(
+          `rp/textures/blocks/${sliceId}.texture_set.json`,
+          JSON.stringify({
+            format_version: "1.16.100",
+            "minecraft:texture_set": { color: sliceId },
+          }, null, 2),
+        );
+
+        // Update terrain data
+        terrainData[`${namespace}_${sliceId}`] = {
+          textures: `textures/blocks/${sliceId}`,
+        };
+
+        // Add to block palette
+        const blockIdx = blockPalette.push({
+          name: `${namespace}:${sliceId}`,
+          states: {},
+          version: BLOCK_VERSION,
+        }) - 1;
+
+        volume[0][x][y] = blockIdx;
+
+        // Add blocks.json data
+        blocksData[`${namespace}:${sliceId}`] = {
+          sound: "stone",
+          isotropic: false,
+        };
+
+        // Add to flipbook textures
+        flipbookTextures.push({
+          atlas_tile: `${namespace}_${sliceId}`,
+          flipbook_texture: `textures/blocks/${sliceId}`,
+          ticks_per_frame: tickSpeed,
+        });
+      }
+    }
+
+    // Write flipbook textures JSON
+    addon.file(
+      "rp/textures/flipbook_textures.json",
+      JSON.stringify(flipbookTextures, null, 2),
+    );
+  } else {
+    // Depth-based structure - each frame becomes a layer
+    for (let z = 0; z < depth; z++) {
+      const frameCanvas = renderFrameToCanvas(decodedFrames[z]);
+
+      for (let x = 0; x < gridSizeX; x++) {
+        for (let y = 0; y < gridSizeY; y++) {
+          const sliceId = `${namespace}_${x}_${y}_${z}`;
+          const xPos = x * cropSizeX;
+          const yPos = y * cropSizeY;
+
+          // Slice the image
+          const { blob, avgColor } = await sliceImage(
+            frameCanvas,
+            xPos,
+            yPos,
+            cropSizeX,
+            cropSizeY,
+            resolution,
+          );
+
+          // Add block definition
+          addon.file(
+            `bp/blocks/${sliceId}.block.json`,
+            createBlockJson(namespace, sliceId, avgColor),
+          );
+
+          // Add texture
+          addon.file(
+            `rp/textures/blocks/${sliceId}.png`,
+            await blob.arrayBuffer(),
+          );
+
+          // Add texture set
+          addon.file(
+            `rp/textures/blocks/${sliceId}.texture_set.json`,
+            JSON.stringify({
+              format_version: "1.16.100",
+              "minecraft:texture_set": {
+                color: sliceId,
+              },
+            }, null, 2),
+          );
+
+          // Update terrain data
+          terrainData[`${namespace}_${sliceId}`] = {
+            textures: `textures/blocks/${sliceId}`,
+          };
+
+          // Add to block palette
+          const blockIdx = blockPalette.push({
+            name: `${namespace}:${sliceId}`,
+            states: {},
+            version: BLOCK_VERSION,
+          }) - 1;
+
+          volume[z][x][y] = blockIdx;
+
+          // Add blocks.json data
+          blocksData[`${namespace}:${sliceId}`] = {
+            sound: "stone",
+            isotropic: false,
+          };
+        }
+      }
     }
   }
 
