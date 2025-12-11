@@ -3016,6 +3016,7 @@ var currentVoxFile = null;
 var lastResult = null;
 var lastFormat = "";
 var inputType = "image";
+var previewAnimationId = null;
 var editableBlocks = [];
 var currentBasePalette = "minecraft";
 var customPalettes = new Map;
@@ -3023,24 +3024,90 @@ function setStatus(message, type = "info") {
   statusEl.textContent = message;
   statusEl.className = `status ${type}`;
 }
+function stopPreviewAnimation() {
+  if (previewAnimationId !== null) {
+    cancelAnimationFrame(previewAnimationId);
+    previewAnimationId = null;
+  }
+}
+function isGifFile(file) {
+  return file.type === "image/gif" || file.name.toLowerCase().endsWith(".gif");
+}
+function calculateScaledDimensions(width, height, maxSize) {
+  if (width > maxSize || height > maxSize) {
+    if (width > height) {
+      height = height / width * maxSize;
+      width = maxSize;
+    } else {
+      width = width / height * maxSize;
+      height = maxSize;
+    }
+  }
+  return { width: Math.round(width), height: Math.round(height) };
+}
 async function previewImage(file) {
+  stopPreviewAnimation();
+  const ctx = previewCanvas.getContext("2d");
+  const maxSize = 256;
+  if (isGifFile(file)) {
+    try {
+      let animate = function(timestamp) {
+        if (timestamp - lastFrameTime >= frameDelay) {
+          ctx.clearRect(0, 0, width, height);
+          ctx.drawImage(frameCanvases[currentFrame], 0, 0, width, height);
+          currentFrame = (currentFrame + 1) % frameCanvases.length;
+          lastFrameTime = timestamp;
+        }
+        previewAnimationId = requestAnimationFrame(animate);
+      };
+      const frames = await decodeFile(file);
+      if (frames.length === 0) {
+        setStatus("No frames found in GIF", "error");
+        return;
+      }
+      const { width, height } = calculateScaledDimensions(frames[0].width, frames[0].height, maxSize);
+      previewCanvas.width = width;
+      previewCanvas.height = height;
+      ctx.imageSmoothingEnabled = false;
+      if (frames.length === 1) {
+        const imageData = new ImageData(new Uint8ClampedArray(frames[0].data), frames[0].width, frames[0].height);
+        const tempCanvas = document.createElement("canvas");
+        tempCanvas.width = frames[0].width;
+        tempCanvas.height = frames[0].height;
+        const tempCtx = tempCanvas.getContext("2d");
+        tempCtx.putImageData(imageData, 0, 0);
+        ctx.drawImage(tempCanvas, 0, 0, width, height);
+        return;
+      }
+      const frameCanvases = frames.map((frame) => {
+        const frameCanvas = document.createElement("canvas");
+        frameCanvas.width = frame.width;
+        frameCanvas.height = frame.height;
+        const frameCtx = frameCanvas.getContext("2d");
+        const imageData = new ImageData(new Uint8ClampedArray(frame.data), frame.width, frame.height);
+        frameCtx.putImageData(imageData, 0, 0);
+        return frameCanvas;
+      });
+      let currentFrame = 0;
+      const frameDelay = 100;
+      let lastFrameTime = 0;
+      previewAnimationId = requestAnimationFrame(animate);
+    } catch (error) {
+      console.error("Failed to decode GIF:", error);
+      previewStaticImage(file);
+    }
+  } else {
+    previewStaticImage(file);
+  }
+}
+function previewStaticImage(file) {
   const reader = new FileReader;
   reader.onload = (e) => {
     const img = new Image;
     img.onload = () => {
       const ctx = previewCanvas.getContext("2d");
       const maxSize = 256;
-      let width = img.width;
-      let height = img.height;
-      if (width > maxSize || height > maxSize) {
-        if (width > height) {
-          height = height / width * maxSize;
-          width = maxSize;
-        } else {
-          width = width / height * maxSize;
-          height = maxSize;
-        }
-      }
+      const { width, height } = calculateScaledDimensions(img.width, img.height, maxSize);
       previewCanvas.width = width;
       previewCanvas.height = height;
       ctx.imageSmoothingEnabled = false;
@@ -3543,6 +3610,7 @@ function toggleMcaddonOptions() {
   }
 }
 function handleVoxFile(file) {
+  stopPreviewAnimation();
   currentVoxFile = file;
   currentFile = null;
   inputType = "vox";
