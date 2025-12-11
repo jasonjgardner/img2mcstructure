@@ -1165,6 +1165,163 @@ async function vox2mcstructure(input, options) {
     name: "vox2mcstructure"
   });
 }
+// src/client/workerManager.ts
+class ConversionWorkerManager {
+  worker = null;
+  messageId = 0;
+  pendingRequests = new Map;
+  workerUrl = null;
+  initPromise = null;
+  async init(workerUrl) {
+    if (this.worker) {
+      return;
+    }
+    if (this.initPromise) {
+      return this.initPromise;
+    }
+    this.initPromise = new Promise((resolve, reject) => {
+      try {
+        this.workerUrl = workerUrl;
+        this.worker = new Worker(workerUrl, { type: "module" });
+        this.worker.onmessage = (event) => {
+          const { id, success, result, error } = event.data;
+          const pending = this.pendingRequests.get(id);
+          if (pending) {
+            this.pendingRequests.delete(id);
+            if (success) {
+              pending.resolve(result);
+            } else {
+              pending.reject(new Error(error));
+            }
+          }
+        };
+        this.worker.onerror = (error) => {
+          console.error("Worker error:", error);
+          for (const [id, pending] of this.pendingRequests) {
+            pending.reject(new Error(`Worker error: ${error.message}`));
+            this.pendingRequests.delete(id);
+          }
+        };
+        resolve();
+      } catch (err) {
+        reject(err);
+      }
+    });
+    return this.initPromise;
+  }
+  isInitialized() {
+    return this.worker !== null;
+  }
+  terminate() {
+    if (this.worker) {
+      this.worker.terminate();
+      this.worker = null;
+      this.initPromise = null;
+      for (const [id, pending] of this.pendingRequests) {
+        pending.reject(new Error("Worker terminated"));
+        this.pendingRequests.delete(id);
+      }
+    }
+  }
+  async sendMessage(type, payload, transferables) {
+    if (!this.worker) {
+      throw new Error("Worker not initialized. Call init() first.");
+    }
+    const id = ++this.messageId;
+    const request = { id, type, payload };
+    return new Promise((resolve, reject) => {
+      this.pendingRequests.set(id, {
+        resolve,
+        reject
+      });
+      if (transferables && transferables.length > 0) {
+        this.worker.postMessage(request, transferables);
+      } else {
+        this.worker.postMessage(request);
+      }
+    });
+  }
+  async decode(data, options) {
+    return this.sendMessage("decode", { data, options }, [data]);
+  }
+  async constructMcstructure(frames, palette, axis = "x") {
+    return this.sendMessage("constructMcstructure", {
+      frames,
+      palette,
+      axis
+    });
+  }
+  async constructSchematic(frames, palette, axis = "x") {
+    return this.sendMessage("constructSchematic", {
+      frames,
+      palette,
+      axis
+    });
+  }
+  async constructNbt(frames, palette, axis = "x") {
+    return this.sendMessage("constructNbt", {
+      frames,
+      palette,
+      axis
+    });
+  }
+  async serializeNbt(data, options) {
+    return this.sendMessage("serializeNbt", { data, options });
+  }
+  async parseVox(data) {
+    return this.sendMessage("parseVox", { data }, [data]);
+  }
+  async getNearestColors(colors, palette) {
+    return this.sendMessage("getNearestColors", { colors, palette });
+  }
+}
+var workerManager = null;
+function getWorkerManager() {
+  if (!workerManager) {
+    workerManager = new ConversionWorkerManager;
+  }
+  return workerManager;
+}
+async function initWorker(workerUrl) {
+  const manager = getWorkerManager();
+  await manager.init(workerUrl);
+}
+function isWorkerAvailable() {
+  return workerManager?.isInitialized() ?? false;
+}
+async function decodeFileWithWorker(file, options) {
+  const manager = getWorkerManager();
+  const buffer = await file.arrayBuffer();
+  return manager.decode(buffer, options);
+}
+async function img2mcstructureWithWorker(file, options) {
+  const manager = getWorkerManager();
+  const { palette, axis = "x", name = "img2mcstructure", decodeOptions } = options;
+  const buffer = await file.arrayBuffer();
+  const frames = await manager.decode(buffer, decodeOptions);
+  const blockPalette = Array.isArray(palette) ? palette : createPalette(palette);
+  const structure = await manager.constructMcstructure(frames, blockPalette, axis);
+  const rotated = axis !== "x" ? rotateStructure(structure, axis) : structure;
+  return manager.serializeNbt(rotated, { endian: "little", name });
+}
+async function img2schematicWithWorker(file, options) {
+  const manager = getWorkerManager();
+  const { palette, axis = "x", name = "img2schematic", decodeOptions } = options;
+  const buffer = await file.arrayBuffer();
+  const frames = await manager.decode(buffer, decodeOptions);
+  const blockPalette = Array.isArray(palette) ? palette : createPalette(palette);
+  const structure = await manager.constructSchematic(frames, blockPalette, axis);
+  return manager.serializeNbt(structure, { endian: "big" });
+}
+async function img2nbtWithWorker(file, options) {
+  const manager = getWorkerManager();
+  const { palette, axis = "x", decodeOptions } = options;
+  const buffer = await file.arrayBuffer();
+  const frames = await manager.decode(buffer, decodeOptions);
+  const blockPalette = Array.isArray(palette) ? palette : createPalette(palette);
+  const structure = await manager.constructNbt(frames, blockPalette, axis);
+  return manager.serializeNbt(structure, { endian: "big" });
+}
 
 // src/client/mod.ts
 function downloadBlob(data, filename, mimeType = "application/octet-stream") {
@@ -3017,6 +3174,8 @@ var lastResult = null;
 var lastFormat = "";
 var inputType = "image";
 var previewAnimationId = null;
+var useWorker = false;
+var workerDecodedFrames = null;
 var editableBlocks = [];
 var currentBasePalette = "minecraft";
 var customPalettes = new Map;
@@ -3047,6 +3206,7 @@ function calculateScaledDimensions(width, height, maxSize) {
 }
 async function previewImage(file) {
   stopPreviewAnimation();
+  workerDecodedFrames = null;
   const ctx = previewCanvas.getContext("2d");
   const maxSize = 256;
   if (isGifFile(file)) {
@@ -3060,7 +3220,20 @@ async function previewImage(file) {
         }
         previewAnimationId = requestAnimationFrame(animate);
       };
-      const frames = await decodeFile(file);
+      let frames;
+      if (useWorker && isWorkerAvailable()) {
+        setStatus("Decoding with Web Worker...", "info");
+        frames = await decodeFileWithWorker(file);
+        workerDecodedFrames = frames;
+      } else {
+        const decodedFrames = await decodeFile(file);
+        frames = decodedFrames.map((f) => ({
+          width: f.width,
+          height: f.height,
+          data: f.data
+        }));
+        workerDecodedFrames = frames;
+      }
       if (frames.length === 0) {
         setStatus("No frames found in GIF", "error");
         return;
@@ -3077,6 +3250,7 @@ async function previewImage(file) {
         const tempCtx = tempCanvas.getContext("2d");
         tempCtx.putImageData(imageData, 0, 0);
         ctx.drawImage(tempCanvas, 0, 0, width, height);
+        setStatus(`Selected: ${file.name}`, "info");
         return;
       }
       const frameCanvases = frames.map((frame) => {
@@ -3092,12 +3266,20 @@ async function previewImage(file) {
       const frameDelay = 100;
       let lastFrameTime = 0;
       previewAnimationId = requestAnimationFrame(animate);
+      setStatus(`Selected: ${file.name} (${frames.length} frames)`, "info");
     } catch (error) {
       console.error("Failed to decode GIF:", error);
       previewStaticImage(file);
     }
   } else {
     previewStaticImage(file);
+    if (useWorker && isWorkerAvailable()) {
+      try {
+        workerDecodedFrames = await decodeFileWithWorker(file);
+      } catch (error) {
+        console.warn("Worker pre-decode failed, will decode during conversion:", error);
+      }
+    }
   }
 }
 function previewStaticImage(file) {
@@ -3172,7 +3354,8 @@ async function convert() {
     setStatus("Please select an image file", "error");
     return;
   }
-  setStatus("Converting...", "info");
+  const workerEnabled = useWorker && isWorkerAvailable();
+  setStatus(workerEnabled ? "Converting with Web Worker..." : "Converting...", "info");
   convertBtn.disabled = true;
   try {
     const palette = getSelectedPalette();
@@ -3183,6 +3366,8 @@ async function convert() {
       case "mcstructure":
         if (inputType === "vox" && currentVoxFile) {
           result = await vox2mcstructure(currentVoxFile, { palette });
+        } else if (workerEnabled) {
+          result = await img2mcstructureWithWorker(currentFile, { palette, axis });
         } else {
           result = await img2mcstructure(currentFile, { palette, axis });
         }
@@ -3201,7 +3386,11 @@ async function convert() {
           convertBtn.disabled = false;
           return;
         }
-        result = await img2schematic(currentFile, { palette, axis });
+        if (workerEnabled) {
+          result = await img2schematicWithWorker(currentFile, { palette, axis });
+        } else {
+          result = await img2schematic(currentFile, { palette, axis });
+        }
         break;
       case "nbt":
         if (inputType === "vox") {
@@ -3209,7 +3398,11 @@ async function convert() {
           convertBtn.disabled = false;
           return;
         }
-        result = await img2nbt(currentFile, { palette, axis });
+        if (workerEnabled) {
+          result = await img2nbtWithWorker(currentFile, { palette, axis });
+        } else {
+          result = await img2nbt(currentFile, { palette, axis });
+        }
         break;
       case "mcaddon": {
         if (inputType === "vox") {
@@ -3722,7 +3915,26 @@ function init() {
   addBlockBtn.addEventListener("click", addNewBlock);
   resetPaletteBtn.addEventListener("click", resetPalette);
   savePaletteBtn.addEventListener("click", saveCustomPalette);
+  initializeWorker();
   setStatus("Ready - Select an image to convert", "info");
+}
+async function initializeWorker() {
+  if (typeof Worker === "undefined") {
+    console.log("Web Workers not supported, using main thread");
+    return;
+  }
+  try {
+    await initWorker("./worker.bundle.js");
+    useWorker = true;
+    console.log("Web Worker initialized successfully");
+    const statusText = statusEl.textContent || "";
+    if (statusText.includes("Ready")) {
+      setStatus("Ready - Select an image to convert (Worker enabled)", "info");
+    }
+  } catch (error) {
+    console.warn("Failed to initialize Web Worker, falling back to main thread:", error);
+    useWorker = false;
+  }
 }
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", init);

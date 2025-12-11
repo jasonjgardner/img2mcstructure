@@ -4,6 +4,10 @@
  * This module provides browser-compatible functions for converting images
  * to various Minecraft structure formats. No Node.js dependencies required.
  *
+ * Web Worker Support:
+ * For better performance, this library supports offloading heavy computation
+ * to Web Workers. Use the worker-based functions for large images or GIFs.
+ *
  * @example
  * ```typescript
  * import { img2mcstructure, createPalette } from './client/mod.ts';
@@ -21,6 +25,19 @@
  * a.href = url;
  * a.download = 'structure.mcstructure';
  * a.click();
+ * ```
+ *
+ * @example Web Worker usage
+ * ```typescript
+ * import { initWorker, img2mcstructureWithWorker } from './client/mod.ts';
+ *
+ * // Initialize the worker first
+ * await initWorker('./worker.bundle.js');
+ *
+ * // Then use worker-accelerated functions
+ * const structure = await img2mcstructureWithWorker(file, {
+ *   palette: minecraftPalette
+ * });
  * ```
  */
 
@@ -137,3 +154,17 @@ export function downloadNbt(data: Uint8Array, filename = "structure.nbt"): void 
 export function downloadMcaddon(data: Uint8Array, filename = "addon.mcaddon"): void {
   downloadBlob(data, filename, "application/zip");
 }
+
+// Web Worker support for optimized encoding/decoding
+export {
+  initWorker,
+  isWorkerAvailable,
+  terminateWorker,
+  getWorkerManager,
+  decodeFileWithWorker,
+  img2mcstructureWithWorker,
+  img2schematicWithWorker,
+  img2nbtWithWorker,
+  type WorkerDecodedFrames,
+  type SerializableFrame,
+} from "./workerManager.ts";

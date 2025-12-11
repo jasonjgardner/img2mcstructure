@@ -1,6 +1,7 @@
 /**
  * img2mcstructure Demo Application
  * Client-side image to Minecraft structure converter
+ * Uses Web Workers for optimized encoding/decoding
  */
 
 import {
@@ -21,6 +22,17 @@ import {
   type IBlock,
   type PaletteSource,
 } from "../src/client/mod.ts";
+
+// Worker-accelerated conversion functions
+import {
+  initWorker,
+  isWorkerAvailable,
+  img2mcstructureWithWorker,
+  img2schematicWithWorker,
+  img2nbtWithWorker,
+  decodeFileWithWorker,
+  type WorkerDecodedFrames,
+} from "../src/client/workerManager.ts";
 import {
   palettes,
   type PaletteName,
@@ -79,6 +91,8 @@ let lastResult: Uint8Array | string | null = null;
 let lastFormat: string = "";
 let inputType: "image" | "vox" = "image";
 let previewAnimationId: number | null = null;
+let useWorker: boolean = false;
+let workerDecodedFrames: WorkerDecodedFrames | null = null;
 
 // Palette Editor State
 let editableBlocks: EditableBlock[] = [];
@@ -131,13 +145,33 @@ async function previewImage(file: File) {
   // Stop any existing animation
   stopPreviewAnimation();
 
+  // Clear cached frames
+  workerDecodedFrames = null;
+
   const ctx = previewCanvas.getContext("2d")!;
   const maxSize = 256;
 
   // Check if it's a GIF - if so, decode and animate
   if (isGifFile(file)) {
     try {
-      const frames = await decodeFile(file);
+      // Use worker for decoding if available, otherwise fall back to main thread
+      let frames: WorkerDecodedFrames;
+
+      if (useWorker && isWorkerAvailable()) {
+        setStatus("Decoding with Web Worker...", "info");
+        frames = await decodeFileWithWorker(file);
+        // Cache decoded frames for faster conversion
+        workerDecodedFrames = frames;
+      } else {
+        const decodedFrames = await decodeFile(file);
+        // Convert to worker-compatible format for caching
+        frames = decodedFrames.map(f => ({
+          width: f.width,
+          height: f.height,
+          data: f.data,
+        }));
+        workerDecodedFrames = frames;
+      }
 
       if (frames.length === 0) {
         setStatus("No frames found in GIF", "error");
@@ -169,6 +203,7 @@ async function previewImage(file: File) {
         const tempCtx = tempCanvas.getContext("2d")!;
         tempCtx.putImageData(imageData, 0, 0);
         ctx.drawImage(tempCanvas, 0, 0, width, height);
+        setStatus(`Selected: ${file.name}`, "info");
         return;
       }
 
@@ -204,6 +239,7 @@ async function previewImage(file: File) {
 
       // Start animation
       previewAnimationId = requestAnimationFrame(animate);
+      setStatus(`Selected: ${file.name} (${frames.length} frames)`, "info");
 
     } catch (error) {
       console.error("Failed to decode GIF:", error);
@@ -211,8 +247,17 @@ async function previewImage(file: File) {
       previewStaticImage(file);
     }
   } else {
-    // Non-GIF: use static preview
+    // Non-GIF: use static preview and cache for worker
     previewStaticImage(file);
+
+    // Pre-decode for worker if available
+    if (useWorker && isWorkerAvailable()) {
+      try {
+        workerDecodedFrames = await decodeFileWithWorker(file);
+      } catch (error) {
+        console.warn("Worker pre-decode failed, will decode during conversion:", error);
+      }
+    }
   }
 }
 
@@ -309,7 +354,8 @@ async function convert() {
     return;
   }
 
-  setStatus("Converting...", "info");
+  const workerEnabled = useWorker && isWorkerAvailable();
+  setStatus(workerEnabled ? "Converting with Web Worker..." : "Converting...", "info");
   convertBtn.disabled = true;
 
   try {
@@ -323,6 +369,9 @@ async function convert() {
       case "mcstructure":
         if (inputType === "vox" && currentVoxFile) {
           result = await vox2mcstructure(currentVoxFile, { palette });
+        } else if (workerEnabled) {
+          // Use worker-accelerated conversion
+          result = await img2mcstructureWithWorker(currentFile!, { palette, axis });
         } else {
           result = await img2mcstructure(currentFile!, { palette, axis });
         }
@@ -333,6 +382,7 @@ async function convert() {
           convertBtn.disabled = false;
           return;
         }
+        // mcfunction doesn't benefit as much from workers (text output)
         result = await img2mcfunction(currentFile!, { palette });
         break;
       case "schematic":
@@ -341,7 +391,11 @@ async function convert() {
           convertBtn.disabled = false;
           return;
         }
-        result = await img2schematic(currentFile!, { palette, axis });
+        if (workerEnabled) {
+          result = await img2schematicWithWorker(currentFile!, { palette, axis });
+        } else {
+          result = await img2schematic(currentFile!, { palette, axis });
+        }
         break;
       case "nbt":
         if (inputType === "vox") {
@@ -349,7 +403,11 @@ async function convert() {
           convertBtn.disabled = false;
           return;
         }
-        result = await img2nbt(currentFile!, { palette, axis });
+        if (workerEnabled) {
+          result = await img2nbtWithWorker(currentFile!, { palette, axis });
+        } else {
+          result = await img2nbt(currentFile!, { palette, axis });
+        }
         break;
       case "mcaddon": {
         if (inputType === "vox") {
@@ -361,6 +419,7 @@ async function convert() {
         const resolution = parseInt(resolutionSelect?.value || "16", 10);
         // frames > 1 enables flipbook animation mode for GIFs
         const frames = animateGifCheckbox?.checked ? 2 : 1;
+        // mcaddon involves canvas operations that need to stay on main thread
         result = await img2mcaddon(currentFile!, { gridSize, resolution, axis, frames });
         break;
       }
@@ -1039,7 +1098,38 @@ function init() {
   resetPaletteBtn.addEventListener("click", resetPalette);
   savePaletteBtn.addEventListener("click", saveCustomPalette);
 
+  // Initialize Web Worker for optimized conversion
+  initializeWorker();
+
   setStatus("Ready - Select an image to convert", "info");
+}
+
+/**
+ * Initialize Web Worker for optimized encoding/decoding
+ */
+async function initializeWorker() {
+  // Check if Web Workers are supported
+  if (typeof Worker === "undefined") {
+    console.log("Web Workers not supported, using main thread");
+    return;
+  }
+
+  try {
+    // Try to initialize the worker
+    // The worker URL should point to the bundled worker script
+    await initWorker("./worker.bundle.js");
+    useWorker = true;
+    console.log("Web Worker initialized successfully");
+
+    // Update status to indicate worker is available
+    const statusText = statusEl.textContent || "";
+    if (statusText.includes("Ready")) {
+      setStatus("Ready - Select an image to convert (Worker enabled)", "info");
+    }
+  } catch (error) {
+    console.warn("Failed to initialize Web Worker, falling back to main thread:", error);
+    useWorker = false;
+  }
 }
 
 // Initialize when DOM is ready
