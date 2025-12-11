@@ -312,19 +312,31 @@ export default async function img2mcaddon(
   const gridSizeX = gridSize;
   const gridSizeY = Math.max(1, Math.round(gridSize * aspectRatio));
 
-  // Calculate crop sizes for each dimension
-  const cropSizeX = Math.min(resolution, Math.round(imageWidth / gridSizeX));
-  const cropSizeY = Math.min(resolution, Math.round(imageHeight / gridSizeY));
+  // Calculate the working size - resize frames to grid * resolution for clean slicing
+  const workingWidth = gridSizeX * resolution;
+  const workingHeight = gridSizeY * resolution;
 
-  // Resize image to match grid (preserving aspect ratio)
-  const resizeToX = gridSizeX * cropSizeX;
-  const resizeToY = gridSizeY * cropSizeY;
+  // Resize first frame for preview/icon generation
   const canvas = document.createElement("canvas");
-  canvas.width = resizeToX;
-  canvas.height = resizeToY;
+  canvas.width = workingWidth;
+  canvas.height = workingHeight;
   const ctx = canvas.getContext("2d")!;
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(img, 0, 0, resizeToX, resizeToY);
+  ctx.drawImage(img, 0, 0, workingWidth, workingHeight);
+
+  /**
+   * Resize a frame to the working dimensions for consistent slicing
+   */
+  function resizeFrameForSlicing(frame: ImageFrame): HTMLCanvasElement {
+    const frameCanvas = renderFrameToCanvas(frame);
+    const resizedCanvas = document.createElement("canvas");
+    resizedCanvas.width = workingWidth;
+    resizedCanvas.height = workingHeight;
+    const resizedCtx = resizedCanvas.getContext("2d")!;
+    resizedCtx.imageSmoothingEnabled = false;
+    resizedCtx.drawImage(frameCanvas, 0, 0, workingWidth, workingHeight);
+    return resizedCanvas;
+  }
 
   // Data structures
   const terrainData: Record<string, { textures: string }> = {};
@@ -351,11 +363,15 @@ export default async function img2mcaddon(
     // Create flipbook animation - combine all frames into texture atlases
     const tickSpeed = 10;
 
+    // Pre-resize all frames for consistent slicing
+    const resizedFrames = decodedFrames.map((frame) => resizeFrameForSlicing(frame));
+
     for (let x = 0; x < gridSizeX; x++) {
       for (let y = 0; y < gridSizeY; y++) {
         const sliceId = `${namespace}_${x}_${y}_0`;
-        const xPos = x * cropSizeX;
-        const yPos = y * cropSizeY;
+        // Source position in the resized frame (each slice is exactly resolution x resolution)
+        const xPos = x * resolution;
+        const yPos = y * resolution;
 
         // Create vertical atlas from all frames
         const atlasCanvas = document.createElement("canvas");
@@ -366,13 +382,13 @@ export default async function img2mcaddon(
 
         let totalR = 0, totalG = 0, totalB = 0;
 
-        for (let frameIdx = 0; frameIdx < decodedFrames.length; frameIdx++) {
-          const frameCanvas = renderFrameToCanvas(decodedFrames[frameIdx]);
+        for (let frameIdx = 0; frameIdx < resizedFrames.length; frameIdx++) {
+          const frameCanvas = resizedFrames[frameIdx];
 
-          // Draw slice from this frame onto the atlas
+          // Draw slice from the resized frame onto the atlas
           atlasCtx.drawImage(
             frameCanvas,
-            xPos, yPos, cropSizeX, cropSizeY,
+            xPos, yPos, resolution, resolution,
             0, frameIdx * resolution, resolution, resolution,
           );
 
@@ -455,21 +471,23 @@ export default async function img2mcaddon(
   } else {
     // Depth-based structure - each frame becomes a layer
     for (let z = 0; z < depth; z++) {
-      const frameCanvas = renderFrameToCanvas(decodedFrames[z]);
+      // Resize frame to working dimensions for consistent slicing
+      const frameCanvas = resizeFrameForSlicing(decodedFrames[z]);
 
       for (let x = 0; x < gridSizeX; x++) {
         for (let y = 0; y < gridSizeY; y++) {
           const sliceId = `${namespace}_${x}_${y}_${z}`;
-          const xPos = x * cropSizeX;
-          const yPos = y * cropSizeY;
+          // Source position in the resized frame (each slice is exactly resolution x resolution)
+          const xPos = x * resolution;
+          const yPos = y * resolution;
 
-          // Slice the image
+          // Slice the image (source is now resolution x resolution, so it's a direct copy)
           const { blob, avgColor } = await sliceImage(
             frameCanvas,
             xPos,
             yPos,
-            cropSizeX,
-            cropSizeY,
+            resolution,
+            resolution,
             resolution,
           );
 
