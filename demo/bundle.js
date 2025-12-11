@@ -104,7 +104,18 @@ async function decodeGif(data, options = {}) {
     if (disposalType === 3) {
       previousImageData = ctx.getImageData(0, 0, gifWidth, gifHeight);
     }
-    const frameImageData = new ImageData(new Uint8ClampedArray(patch), dims.width, dims.height);
+    const expectedSize = dims.width * dims.height * 4;
+    let frameData;
+    if (patch.length === expectedSize) {
+      frameData = new Uint8ClampedArray(patch);
+    } else {
+      frameData = new Uint8ClampedArray(expectedSize);
+      frameData.set(patch.subarray(0, Math.min(patch.length, expectedSize)));
+    }
+    if (dims.width <= 0 || dims.height <= 0) {
+      continue;
+    }
+    const frameImageData = new ImageData(frameData, dims.width, dims.height);
     ctx.putImageData(frameImageData, dims.left, dims.top);
     let finalImageData = ctx.getImageData(0, 0, gifWidth, gifHeight);
     if (options.clamp) {
