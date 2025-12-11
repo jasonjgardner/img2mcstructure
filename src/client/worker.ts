@@ -536,7 +536,8 @@ async function serializeNbt(
   data: object,
   options: { endian: "little" | "big"; name?: string }
 ): Promise<Uint8Array> {
-  const nbt = await import("nbtify");
+  // Use full ESM URL since workers don't have access to import maps
+  const nbt = await import("https://esm.sh/nbtify@1.90.1");
   const structure = JSON.stringify(data);
 
   return await nbt.write(nbt.parse(structure), {
