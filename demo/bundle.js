@@ -71,14 +71,74 @@ function colorToRGBA(c) {
 }
 function loadImage(src) {
   return new Promise((resolve, reject) => {
-    const img = new Image;
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
+    const img2 = new Image;
+    img2.onload = () => resolve(img2);
+    img2.onerror = reject;
+    img2.src = src;
   });
 }
-function getImageData(img, maxWidth = MAX_WIDTH, maxHeight = MAX_HEIGHT, clamp = false) {
-  let { width, height } = img;
+function isGifData(data) {
+  return data.length >= 6 && data[0] === 71 && data[1] === 73 && data[2] === 70 && data[3] === 56 && (data[4] === 55 || data[4] === 57) && data[5] === 97;
+}
+async function decodeGif(data, options = {}) {
+  const { parseGIF, decompressFrames } = await import("https://esm.sh/gifuct-js@2.1.2");
+  const gif = parseGIF(data);
+  const frames = decompressFrames(gif, true);
+  if (frames.length === 0) {
+    throw new Error("No frames found in GIF");
+  }
+  const { width: gifWidth, height: gifHeight } = gif.lsd;
+  const imageFrames = [];
+  const canvas = document.createElement("canvas");
+  canvas.width = gifWidth;
+  canvas.height = gifHeight;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  let previousImageData = null;
+  for (const frame of frames) {
+    const { dims, patch, disposalType } = frame;
+    if (disposalType === 2) {
+      ctx.clearRect(0, 0, gifWidth, gifHeight);
+    } else if (disposalType === 3 && previousImageData) {
+      ctx.putImageData(previousImageData, 0, 0);
+    }
+    if (disposalType === 3) {
+      previousImageData = ctx.getImageData(0, 0, gifWidth, gifHeight);
+    }
+    const frameImageData = new ImageData(new Uint8ClampedArray(patch), dims.width, dims.height);
+    ctx.putImageData(frameImageData, dims.left, dims.top);
+    let finalImageData = ctx.getImageData(0, 0, gifWidth, gifHeight);
+    if (options.clamp) {
+      let width = gifWidth;
+      let height = gifHeight;
+      if (width > MAX_WIDTH) {
+        height = Math.round(height / width * MAX_WIDTH);
+        width = MAX_WIDTH;
+      }
+      if (height > MAX_HEIGHT) {
+        width = Math.round(width / height * MAX_HEIGHT);
+        height = MAX_HEIGHT;
+      }
+      if (width !== gifWidth || height !== gifHeight) {
+        const resizeCanvas = document.createElement("canvas");
+        resizeCanvas.width = width;
+        resizeCanvas.height = height;
+        const resizeCtx = resizeCanvas.getContext("2d", {
+          willReadFrequently: true
+        });
+        resizeCtx.imageSmoothingEnabled = false;
+        resizeCtx.drawImage(canvas, 0, 0, width, height);
+        finalImageData = resizeCtx.getImageData(0, 0, width, height);
+      }
+    }
+    imageFrames.push(createImageFrame(finalImageData));
+    if (disposalType !== 3) {
+      previousImageData = ctx.getImageData(0, 0, gifWidth, gifHeight);
+    }
+  }
+  return imageFrames;
+}
+function getImageData(img2, maxWidth = MAX_WIDTH, maxHeight = MAX_HEIGHT, clamp = false) {
+  let { width, height } = img2;
   if (clamp) {
     if (width > maxWidth) {
       height = Math.round(height / width * maxWidth);
@@ -94,32 +154,45 @@ function getImageData(img, maxWidth = MAX_WIDTH, maxHeight = MAX_HEIGHT, clamp =
   canvas.height = height;
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(img, 0, 0, width, height);
+  ctx.drawImage(img2, 0, 0, width, height);
   return ctx.getImageData(0, 0, width, height);
 }
-async function decodeStaticImage(data, options = {}) {
+async function decodeImageData(data, options = {}) {
+  const uint8 = data instanceof ArrayBuffer ? new Uint8Array(data) : data;
+  if (isGifData(uint8)) {
+    return decodeGif(uint8, options);
+  }
   const blob = new Blob([data]);
   const url = URL.createObjectURL(blob);
   try {
-    const img = await loadImage(url);
-    const imageData = getImageData(img, MAX_WIDTH, MAX_HEIGHT, options.clamp);
+    const img2 = await loadImage(url);
+    const imageData = getImageData(img2, MAX_WIDTH, MAX_HEIGHT, options.clamp);
     return [createImageFrame(imageData)];
   } finally {
     URL.revokeObjectURL(url);
   }
 }
 async function decodeBase64(base64, options = {}) {
+  const isGifUri = base64.startsWith("data:image/gif");
+  const base64Data = base64.replace(/^data:image\/[a-z]+;base64,/, "");
+  const binaryString = atob(base64Data);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0;i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  if (isGifUri || isGifData(bytes)) {
+    return decodeGif(bytes, options);
+  }
   const dataUri = base64.startsWith("data:") ? base64 : `data:image/png;base64,${base64}`;
-  const img = await loadImage(dataUri);
-  const imageData = getImageData(img, MAX_WIDTH, MAX_HEIGHT, options.clamp);
+  const img2 = await loadImage(dataUri);
+  const imageData = getImageData(img2, MAX_WIDTH, MAX_HEIGHT, options.clamp);
   return [createImageFrame(imageData)];
 }
 async function decode(input, options = {}) {
   if (typeof input === "string") {
     return decodeBase64(input, options);
   }
-  const uint8 = input instanceof ArrayBuffer ? new Uint8Array(input) : input;
-  return decodeStaticImage(uint8, options);
+  return decodeImageData(input, options);
 }
 async function decodeFile(file, options = {}) {
   const buffer = await file.arrayBuffer();
@@ -285,8 +358,8 @@ function constructDecoded(frames, palette, axis = "x") {
   const waterLayer = layer.slice();
   const loopDepth = Math.min(MAX_DEPTH, depth);
   for (let z = 0;z < loopDepth; z++) {
-    const img = frames[z];
-    for (const [y, x, c] of img.iterateWithColors()) {
+    const img2 = frames[z];
+    for (const [y, x, c] of img2.iterateWithColors()) {
       let [nearest, blockIdx] = memo.get(c) ?? findBlock(c, palette, blockPalette);
       if (blockIdx === -1) {
         blockIdx = blockPalette.push({
@@ -334,23 +407,23 @@ async function createMcStructure(frames, palette, axis = "x", name = "img2mcstru
 }
 async function img2mcstructure(input, options) {
   const { palette, axis = "x", name, decodeOptions } = options;
-  const img = input instanceof File ? await decodeFile(input, decodeOptions) : await decode(input, decodeOptions);
+  const img2 = input instanceof File ? await decodeFile(input, decodeOptions) : await decode(input, decodeOptions);
   const blockPalette = Array.isArray(palette) ? palette : createPalette(palette);
-  return await createMcStructure(img, blockPalette, axis, name);
+  return await createMcStructure(img2, blockPalette, axis, name);
 }
 // src/client/mcfunction.ts
 function framesToMcfunction(frames, blocks, offset = [0, 0, 0]) {
   const len = Math.min(MAX_DEPTH, frames.length);
   const lines = [];
   for (let z = 0;z < len; z++) {
-    const img = frames[z];
-    for (const [x, y, c] of img.iterateWithColors()) {
+    const img2 = frames[z];
+    for (const [x, y, c] of img2.iterateWithColors()) {
       const [r, g, b, a] = colorToRGBA(c);
       if (a < 128) {
         continue;
       }
       const nearest = getNearestColor([r, g, b], blocks);
-      lines.push(`setblock ~${Number(x + offset[0])}~${Math.abs(img.height - y + offset[1])}~${offset[2]} ${nearest.id} replace`);
+      lines.push(`setblock ~${Number(x + offset[0])}~${Math.abs(img2.height - y + offset[1])}~${offset[2]} ${nearest.id} replace`);
     }
   }
   return lines.join(`
@@ -390,8 +463,8 @@ function constructDecoded2(frames, palette, axis = "x") {
   const blocks = [];
   const blockPalette = [];
   for (let z = 0;z < depth; z++) {
-    const img = frames[z];
-    for (const [x, y, c] of img.iterateWithColors()) {
+    const img2 = frames[z];
+    for (const [x, y, c] of img2.iterateWithColors()) {
       let [nearest, blockIdx] = memo.get(c) ?? findBlock2(c, palette, blockPalette);
       if (blockIdx === -1) {
         blockIdx = blockPalette.push(nearest ?? DEFAULT_BLOCK) - 1;
@@ -430,9 +503,9 @@ async function createSchematic(frames, palette, axis = "x", name = "img2schemati
 }
 async function img2schematic(input, options) {
   const { palette, axis = "x", name, decodeOptions } = options;
-  const img = input instanceof File ? await decodeFile(input, decodeOptions) : await decode(input, decodeOptions);
+  const img2 = input instanceof File ? await decodeFile(input, decodeOptions) : await decode(input, decodeOptions);
   const blockPalette = Array.isArray(palette) ? palette : createPalette(palette);
-  return await createSchematic(img, blockPalette, axis, name);
+  return await createSchematic(img2, blockPalette, axis, name);
 }
 // src/client/nbt.ts
 function convertBlock3(c, palette) {
@@ -469,8 +542,8 @@ function constructDecoded3(frames, palette, axis = "x") {
   const blocks = [];
   const blockPalette = [];
   for (let z = 0;z < depth; z++) {
-    const img = frames[z];
-    for (const [x, y, c] of img.iterateWithColors()) {
+    const img2 = frames[z];
+    for (const [x, y, c] of img2.iterateWithColors()) {
       let [nearest, blockIdx] = memo.get(c) ?? findBlock3(c, palette, blockPalette);
       if (blockIdx === -1) {
         blockIdx = blockPalette.push({
@@ -506,9 +579,9 @@ async function createNbtStructure(frames, palette, axis = "x") {
 }
 async function img2nbt(input, options) {
   const { palette, axis = "x", decodeOptions } = options;
-  const img = input instanceof File ? await decodeFile(input, decodeOptions) : await decode(input, decodeOptions);
+  const img2 = input instanceof File ? await decodeFile(input, decodeOptions) : await decode(input, decodeOptions);
   const blockPalette = Array.isArray(palette) ? palette : createPalette(palette);
-  return await createNbtStructure(img, blockPalette, axis);
+  return await createNbtStructure(img2, blockPalette, axis);
 }
 // src/client/mcaddon.ts
 function getAverageColor(imageData) {
@@ -526,13 +599,13 @@ function getAverageColor(imageData) {
     Math.round(b / pixelCount)
   ]);
 }
-async function sliceImage(img, x, y, width, height, targetSize) {
+async function sliceImage(img2, x, y, width, height, targetSize) {
   const canvas = document.createElement("canvas");
   canvas.width = targetSize;
   canvas.height = targetSize;
   const ctx = canvas.getContext("2d");
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(img, x, y, width, height, 0, 0, targetSize, targetSize);
+  ctx.drawImage(img2, x, y, width, height, 0, 0, targetSize, targetSize);
   const imageData = ctx.getImageData(0, 0, targetSize, targetSize);
   const avgColor = getAverageColor(imageData);
   return new Promise((resolve) => {
@@ -604,31 +677,6 @@ function rotateVolume(volume, axis) {
   }
   return rotatedVolume;
 }
-async function loadImageElement(input) {
-  return new Promise((resolve, reject) => {
-    const img = new Image;
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    if (input instanceof File) {
-      const url = URL.createObjectURL(input);
-      img.onload = () => {
-        URL.revokeObjectURL(url);
-        resolve(img);
-      };
-      img.src = url;
-    } else if (typeof input === "string") {
-      img.src = input.startsWith("data:") ? input : `data:image/png;base64,${input}`;
-    } else {
-      const blob = new Blob([input]);
-      const url = URL.createObjectURL(blob);
-      img.onload = () => {
-        URL.revokeObjectURL(url);
-        resolve(img);
-      };
-      img.src = url;
-    }
-  });
-}
 async function serializeNbt2(data, options) {
   const nbt = await import("nbtify");
   const structure = JSON.stringify(data);
@@ -643,12 +691,21 @@ async function img2mcaddon(input, options = {}) {
   const {
     gridSize = 4,
     resolution = 16,
-    axis = "z"
+    axis = "z",
+    frames: framesMode = 1
   } = options;
   const JSZip = (await import("https://esm.sh/jszip@3.10.1")).default;
   const jobId = generateId(7);
   const addon = new JSZip;
-  const img = await loadImageElement(input);
+  let decodedFrames;
+  if (input instanceof File) {
+    decodedFrames = await decodeFile(input, options.decodeOptions);
+  } else {
+    decodedFrames = await decode(input, options.decodeOptions);
+  }
+  if (decodedFrames.length === 0) {
+    throw new Error("No frames found in image");
+  }
   const baseName = input instanceof File ? input.name.replace(/\.[^.]+$/, "") : `mosaic_${jobId}`;
   const namespace = baseName.replace(/\W/g, "_").substring(0, 16).toLowerCase();
   const imageWidth = img.width;
@@ -684,20 +741,74 @@ async function img2mcaddon(input, options = {}) {
         "minecraft:texture_set": {
           color: sliceId
         }
-      }, null, 2));
-      terrainData[`${namespace}_${sliceId}`] = {
-        textures: `textures/blocks/${sliceId}`
-      };
-      const blockIdx = blockPalette.push({
-        name: `${namespace}:${sliceId}`,
-        states: {},
-        version: BLOCK_VERSION
-      }) - 1;
-      volume[0][x][y] = blockIdx;
-      blocksData[`${namespace}:${sliceId}`] = {
-        sound: "stone",
-        isotropic: false
-      };
+        const pixelCount = resolution * resolution;
+        const avgColor = rgb2hex([
+          Math.round(totalR / pixelCount),
+          Math.round(totalG / pixelCount),
+          Math.round(totalB / pixelCount)
+        ]);
+        addon.file(`bp/blocks/${sliceId}.block.json`, createBlockJson(namespace, sliceId, avgColor));
+        const atlasBlob = await new Promise((resolve) => {
+          atlasCanvas.toBlob((blob) => resolve(blob), "image/png");
+        });
+        addon.file(`rp/textures/blocks/${sliceId}.png`, await atlasBlob.arrayBuffer());
+        addon.file(`rp/textures/blocks/${sliceId}.texture_set.json`, JSON.stringify({
+          format_version: "1.16.100",
+          "minecraft:texture_set": { color: sliceId }
+        }, null, 2));
+        terrainData[`${namespace}_${sliceId}`] = {
+          textures: `textures/blocks/${sliceId}`
+        };
+        const blockIdx = blockPalette.push({
+          name: `${namespace}:${sliceId}`,
+          states: {},
+          version: BLOCK_VERSION
+        }) - 1;
+        volume[0][x][y] = blockIdx;
+        blocksData[`${namespace}:${sliceId}`] = {
+          sound: "stone",
+          isotropic: false
+        };
+        flipbookTextures.push({
+          atlas_tile: `${namespace}_${sliceId}`,
+          flipbook_texture: `textures/blocks/${sliceId}`,
+          ticks_per_frame: tickSpeed
+        });
+      }
+    }
+    addon.file("rp/textures/flipbook_textures.json", JSON.stringify(flipbookTextures, null, 2));
+  } else {
+    for (let z = 0;z < depth; z++) {
+      const frameCanvas = renderFrameToCanvas(decodedFrames[z]);
+      for (let x = 0;x < gridSizeX; x++) {
+        for (let y = 0;y < gridSizeY; y++) {
+          const sliceId = `${namespace}_${x}_${y}_${z}`;
+          const xPos = x * cropSizeX;
+          const yPos = y * cropSizeY;
+          const { blob, avgColor } = await sliceImage(frameCanvas, xPos, yPos, cropSizeX, cropSizeY, resolution);
+          addon.file(`bp/blocks/${sliceId}.block.json`, createBlockJson(namespace, sliceId, avgColor));
+          addon.file(`rp/textures/blocks/${sliceId}.png`, await blob.arrayBuffer());
+          addon.file(`rp/textures/blocks/${sliceId}.texture_set.json`, JSON.stringify({
+            format_version: "1.16.100",
+            "minecraft:texture_set": {
+              color: sliceId
+            }
+          }, null, 2));
+          terrainData[`${namespace}_${sliceId}`] = {
+            textures: `textures/blocks/${sliceId}`
+          };
+          const blockIdx = blockPalette.push({
+            name: `${namespace}:${sliceId}`,
+            states: {},
+            version: BLOCK_VERSION
+          }) - 1;
+          volume[z][x][y] = blockIdx;
+          blocksData[`${namespace}:${sliceId}`] = {
+            sound: "stone",
+            isotropic: false
+          };
+        }
+      }
     }
   }
   addon.file("rp/blocks.json", JSON.stringify({
@@ -2857,6 +2968,7 @@ var filenameInput;
 var mcaddonOptions;
 var gridSizeInput;
 var resolutionSelect;
+var animateGifCheckbox;
 var paletteEditorModal;
 var paletteSearchInput;
 var paletteBlockList;
@@ -2880,12 +2992,12 @@ function setStatus(message, type = "info") {
 async function previewImage(file) {
   const reader = new FileReader;
   reader.onload = (e) => {
-    const img = new Image;
-    img.onload = () => {
+    const img2 = new Image;
+    img2.onload = () => {
       const ctx = previewCanvas.getContext("2d");
       const maxSize = 256;
-      let width = img.width;
-      let height = img.height;
+      let width = img2.width;
+      let height = img2.height;
       if (width > maxSize || height > maxSize) {
         if (width > height) {
           height = height / width * maxSize;
@@ -2898,9 +3010,9 @@ async function previewImage(file) {
       previewCanvas.width = width;
       previewCanvas.height = height;
       ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(img, 0, 0, width, height);
+      ctx.drawImage(img2, 0, 0, width, height);
     };
-    img.src = e.target?.result;
+    img2.src = e.target?.result;
   };
   reader.readAsDataURL(file);
 }
@@ -3006,7 +3118,8 @@ async function convert() {
         }
         const gridSize = parseInt(gridSizeInput?.value || "4", 10);
         const resolution = parseInt(resolutionSelect?.value || "16", 10);
-        result = await img2mcaddon(currentFile, { gridSize, resolution, axis });
+        const frames = animateGifCheckbox?.checked ? 2 : 1;
+        result = await img2mcaddon(currentFile, { gridSize, resolution, axis, frames });
         break;
       }
       default:
@@ -3432,6 +3545,7 @@ function init() {
   mcaddonOptions = document.getElementById("mcaddonOptions");
   gridSizeInput = document.getElementById("gridSizeInput");
   resolutionSelect = document.getElementById("resolutionSelect");
+  animateGifCheckbox = document.getElementById("animateGifCheckbox");
   paletteEditorModal = document.getElementById("paletteEditorModal");
   paletteSearchInput = document.getElementById("paletteSearchInput");
   paletteBlockList = document.getElementById("paletteBlockList");
