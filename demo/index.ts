@@ -172,6 +172,14 @@ function hexToRgb(hex: string): [number, number, number] {
 async function convert() {
   const format = formatSelect.value;
 
+  // Validate format value
+  const validFormats = ["mcstructure", "mcfunction", "schematic", "nbt", "mcaddon"];
+  if (!validFormats.includes(format)) {
+    console.error(`Invalid format selected: "${format}". Valid formats: ${validFormats.join(", ")}`);
+    setStatus(`Invalid format: ${format}. Please refresh the page.`, "error");
+    return;
+  }
+
   // Check if we have appropriate input
   if (inputType === "vox") {
     if (!currentVoxFile) {
@@ -237,7 +245,9 @@ async function convert() {
         break;
       }
       default:
-        throw new Error(`Unknown format: ${format}`);
+        // This should never be reached due to validation above
+        console.error(`Unexpected format in switch: "${format}", type: ${typeof format}`);
+        throw new Error(`Unknown format: ${format}. Please refresh the page and try again.`);
     }
 
     lastResult = result;
