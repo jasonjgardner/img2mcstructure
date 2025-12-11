@@ -2,7 +2,8 @@
   "type": "module",
   "scripts": {
     "build": "bun run format && bun build ./app/index.tsx > ./dist/bundle.js",
-    "build:demo": "bun build ./demo/index.ts --outfile ./demo/bundle.js --target browser --external nbtify",
+    "build:demo": "bun run build:worker && bun build ./demo/index.ts --outfile ./demo/bundle.js --target browser --external nbtify",
+    "build:worker": "bun build ./src/client/worker.ts --outfile ./demo/worker.bundle.js --target browser --external nbtify",
     "start": "bun run build && bun run ./main.ts",
     "bump": "deno run -A jsr:@mys/bump@1"
   },
