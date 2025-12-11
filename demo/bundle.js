@@ -2991,6 +2991,7 @@ var filenameInput;
 var mcaddonOptions;
 var gridSizeInput;
 var resolutionSelect;
+var animateGifCheckbox;
 var paletteEditorModal;
 var paletteSearchInput;
 var paletteBlockList;
@@ -3140,7 +3141,8 @@ async function convert() {
         }
         const gridSize = parseInt(gridSizeInput?.value || "4", 10);
         const resolution = parseInt(resolutionSelect?.value || "16", 10);
-        result = await img2mcaddon(currentFile, { gridSize, resolution, axis });
+        const frames = animateGifCheckbox?.checked ? 2 : 1;
+        result = await img2mcaddon(currentFile, { gridSize, resolution, axis, frames });
         break;
       }
       default:
@@ -3566,6 +3568,7 @@ function init() {
   mcaddonOptions = document.getElementById("mcaddonOptions");
   gridSizeInput = document.getElementById("gridSizeInput");
   resolutionSelect = document.getElementById("resolutionSelect");
+  animateGifCheckbox = document.getElementById("animateGifCheckbox");
   paletteEditorModal = document.getElementById("paletteEditorModal");
   paletteSearchInput = document.getElementById("paletteSearchInput");
   paletteBlockList = document.getElementById("paletteBlockList");

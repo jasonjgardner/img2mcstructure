@@ -60,6 +60,7 @@ let filenameInput: HTMLInputElement;
 let mcaddonOptions: HTMLElement;
 let gridSizeInput: HTMLInputElement;
 let resolutionSelect: HTMLSelectElement;
+let animateGifCheckbox: HTMLInputElement;
 
 // Palette Editor DOM Elements
 let paletteEditorModal: HTMLElement;
@@ -241,7 +242,9 @@ async function convert() {
         }
         const gridSize = parseInt(gridSizeInput?.value || "4", 10);
         const resolution = parseInt(resolutionSelect?.value || "16", 10);
-        result = await img2mcaddon(currentFile!, { gridSize, resolution, axis });
+        // frames > 1 enables flipbook animation mode for GIFs
+        const frames = animateGifCheckbox?.checked ? 2 : 1;
+        result = await img2mcaddon(currentFile!, { gridSize, resolution, axis, frames });
         break;
       }
       default:
@@ -808,6 +811,7 @@ function init() {
   mcaddonOptions = document.getElementById("mcaddonOptions") as HTMLElement;
   gridSizeInput = document.getElementById("gridSizeInput") as HTMLInputElement;
   resolutionSelect = document.getElementById("resolutionSelect") as HTMLSelectElement;
+  animateGifCheckbox = document.getElementById("animateGifCheckbox") as HTMLInputElement;
 
   // Palette Editor DOM elements
   paletteEditorModal = document.getElementById("paletteEditorModal") as HTMLElement;
