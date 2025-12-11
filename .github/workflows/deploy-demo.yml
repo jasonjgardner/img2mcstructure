@@ -37,7 +37,7 @@ jobs:
 
       - name: Build demo
         working-directory: ./demo
-        run: bun build ./index.ts --outfile ./bundle.js --target browser
+        run: bun build ./index.ts --outfile ./bundle.js --target browser --external nbtify
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
