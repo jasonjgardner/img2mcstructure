@@ -112,6 +112,16 @@ export function constructDecoded(
 
         memo.set(c, [nearest, blockIdx]);
       }
+
+      blocks.push({
+        pos:
+          axis === "x"
+            ? [y - 1, z, x - 1]
+            : axis === "z"
+            ? [x - 1, z, y - 1]
+            : [x - 1, y - 1, z],
+        state: blockIdx,
+      });
     }
   }
 
