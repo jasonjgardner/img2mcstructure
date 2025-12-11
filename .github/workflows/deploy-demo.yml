@@ -37,7 +37,7 @@ jobs:
 
       - name: Build demo
         working-directory: ./demo
-        run: bun build ./index.ts --outfile ./bundle.js --target browser
+        run: NODE_PATH=./node_modules npx esbuild ./index.ts --bundle --outfile=./bundle.js --format=esm --target=es2020 --platform=browser
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
