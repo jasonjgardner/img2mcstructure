@@ -708,8 +708,8 @@ async function img2mcaddon(input, options = {}) {
   }
   const baseName = input instanceof File ? input.name.replace(/\.[^.]+$/, "") : `mosaic_${jobId}`;
   const namespace = baseName.replace(/\W/g, "_").substring(0, 16).toLowerCase();
-  const imageWidth = decodedFrames[0].width;
-  const imageHeight = decodedFrames[0].height;
+  const imageWidth = img.width;
+  const imageHeight = img.height;
   const aspectRatio = imageHeight / imageWidth;
   const gridSizeX = gridSize;
   const gridSizeY = Math.max(1, Math.round(gridSize * aspectRatio));
@@ -717,52 +717,29 @@ async function img2mcaddon(input, options = {}) {
   const cropSizeY = Math.min(resolution, Math.round(imageHeight / gridSizeY));
   const resizeToX = gridSizeX * cropSizeX;
   const resizeToY = gridSizeY * cropSizeY;
+  const canvas = document.createElement("canvas");
+  canvas.width = resizeToX;
+  canvas.height = resizeToY;
+  const ctx = canvas.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, 0, 0, resizeToX, resizeToY);
   const terrainData = {};
   const blocksData = {};
   const blockPalette = [];
-  const useFlipbook = framesMode > 1 && decodedFrames.length > 1;
-  const depth = useFlipbook ? 1 : decodedFrames.length;
+  const depth = 1;
   const volume = Array.from({ length: depth }, () => Array.from({ length: gridSizeX }, () => Array(gridSizeY).fill(-1)));
-  function renderFrameToCanvas(frame) {
-    const canvas = document.createElement("canvas");
-    canvas.width = resizeToX;
-    canvas.height = resizeToY;
-    const ctx = canvas.getContext("2d");
-    ctx.imageSmoothingEnabled = false;
-    const frameCanvas = document.createElement("canvas");
-    frameCanvas.width = frame.width;
-    frameCanvas.height = frame.height;
-    const frameCtx = frameCanvas.getContext("2d");
-    const imageData = new ImageData(new Uint8ClampedArray(frame.data), frame.width, frame.height);
-    frameCtx.putImageData(imageData, 0, 0);
-    ctx.drawImage(frameCanvas, 0, 0, resizeToX, resizeToY);
-    return canvas;
-  }
-  const flipbookTextures = [];
-  if (useFlipbook) {
-    const tickSpeed = 10;
-    for (let x = 0;x < gridSizeX; x++) {
-      for (let y = 0;y < gridSizeY; y++) {
-        const sliceId = `${namespace}_${x}_${y}_0`;
-        const xPos = x * cropSizeX;
-        const yPos = y * cropSizeY;
-        const atlasCanvas = document.createElement("canvas");
-        atlasCanvas.width = resolution;
-        atlasCanvas.height = resolution * decodedFrames.length;
-        const atlasCtx = atlasCanvas.getContext("2d");
-        atlasCtx.imageSmoothingEnabled = false;
-        let totalR = 0, totalG = 0, totalB = 0;
-        for (let frameIdx = 0;frameIdx < decodedFrames.length; frameIdx++) {
-          const frameCanvas = renderFrameToCanvas(decodedFrames[frameIdx]);
-          atlasCtx.drawImage(frameCanvas, xPos, yPos, cropSizeX, cropSizeY, 0, frameIdx * resolution, resolution, resolution);
-          if (frameIdx === 0) {
-            const sliceData = atlasCtx.getImageData(0, 0, resolution, resolution);
-            for (let i = 0;i < sliceData.data.length; i += 4) {
-              totalR += sliceData.data[i];
-              totalG += sliceData.data[i + 1];
-              totalB += sliceData.data[i + 2];
-            }
-          }
+  for (let x = 0;x < gridSizeX; x++) {
+    for (let y = 0;y < gridSizeY; y++) {
+      const sliceId = `${namespace}_${x}_${y}_0`;
+      const xPos = x * cropSizeX;
+      const yPos = y * cropSizeY;
+      const { blob, avgColor } = await sliceImage(canvas, xPos, yPos, cropSizeX, cropSizeY, resolution);
+      addon.file(`bp/blocks/${sliceId}.block.json`, createBlockJson(namespace, sliceId, avgColor));
+      addon.file(`rp/textures/blocks/${sliceId}.png`, await blob.arrayBuffer());
+      addon.file(`rp/textures/blocks/${sliceId}.texture_set.json`, JSON.stringify({
+        format_version: "1.16.100",
+        "minecraft:texture_set": {
+          color: sliceId
         }
         const pixelCount = resolution * resolution;
         const avgColor = rgb2hex([

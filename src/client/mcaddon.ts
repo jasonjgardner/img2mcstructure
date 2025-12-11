@@ -283,8 +283,8 @@ export default async function img2mcaddon(
   const namespace = baseName.replace(/\W/g, "_").substring(0, 16).toLowerCase();
 
   // Calculate grid dimensions based on image aspect ratio
-  const imageWidth = decodedFrames[0].width;
-  const imageHeight = decodedFrames[0].height;
+  const imageWidth = img.width;
+  const imageHeight = img.height;
   const aspectRatio = imageHeight / imageWidth;
 
   // gridSize is used for the X dimension, calculate Y based on aspect ratio
@@ -295,9 +295,15 @@ export default async function img2mcaddon(
   const cropSizeX = Math.min(resolution, Math.round(imageWidth / gridSizeX));
   const cropSizeY = Math.min(resolution, Math.round(imageHeight / gridSizeY));
 
-  // Resize dimensions
+  // Resize image to match grid (preserving aspect ratio)
   const resizeToX = gridSizeX * cropSizeX;
   const resizeToY = gridSizeY * cropSizeY;
+  const canvas = document.createElement("canvas");
+  canvas.width = resizeToX;
+  canvas.height = resizeToY;
+  const ctx = canvas.getContext("2d")!;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, 0, 0, resizeToX, resizeToY);
 
   // Data structures
   const terrainData: Record<string, { textures: string }> = {};
@@ -313,30 +319,50 @@ export default async function img2mcaddon(
     () => Array.from({ length: gridSizeX }, () => Array(gridSizeY).fill(-1)),
   );
 
-  // Helper to render a frame to canvas
-  function renderFrameToCanvas(frame: ImageFrame): HTMLCanvasElement {
-    const canvas = document.createElement("canvas");
-    canvas.width = resizeToX;
-    canvas.height = resizeToY;
-    const ctx = canvas.getContext("2d")!;
-    ctx.imageSmoothingEnabled = false;
+  // Process each grid cell
+  for (let x = 0; x < gridSizeX; x++) {
+    for (let y = 0; y < gridSizeY; y++) {
+      const sliceId = `${namespace}_${x}_${y}_0`;
+      const xPos = x * cropSizeX;
+      const yPos = y * cropSizeY;
 
-    // Create ImageData from the frame
-    const frameCanvas = document.createElement("canvas");
-    frameCanvas.width = frame.width;
-    frameCanvas.height = frame.height;
-    const frameCtx = frameCanvas.getContext("2d")!;
-    const imageData = new ImageData(
-      new Uint8ClampedArray(frame.data),
-      frame.width,
-      frame.height,
-    );
-    frameCtx.putImageData(imageData, 0, 0);
+      // Slice the image
+      const { blob, avgColor } = await sliceImage(
+        canvas,
+        xPos,
+        yPos,
+        cropSizeX,
+        cropSizeY,
+        resolution,
+      );
 
-    // Draw resized
-    ctx.drawImage(frameCanvas, 0, 0, resizeToX, resizeToY);
-    return canvas;
-  }
+      // Add block definition
+      addon.file(
+        `bp/blocks/${sliceId}.block.json`,
+        createBlockJson(namespace, sliceId, avgColor),
+      );
+
+      // Add texture
+      addon.file(
+        `rp/textures/blocks/${sliceId}.png`,
+        await blob.arrayBuffer(),
+      );
+
+      // Add texture set
+      addon.file(
+        `rp/textures/blocks/${sliceId}.texture_set.json`,
+        JSON.stringify({
+          format_version: "1.16.100",
+          "minecraft:texture_set": {
+            color: sliceId,
+          },
+        }, null, 2),
+      );
+
+      // Update terrain data
+      terrainData[`${namespace}_${sliceId}`] = {
+        textures: `textures/blocks/${sliceId}`,
+      };
 
   // Flipbook textures for animation mode
   const flipbookTextures: Array<{
