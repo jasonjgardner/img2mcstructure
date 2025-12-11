@@ -4,6 +4,12 @@
 
 import type { PaletteSource, IBlock } from "../src/types.ts";
 
+// Import rainbow addon databases
+import rainbowDb from "../db/rainbow.json" with { type: "json" };
+import rainbowGlassDb from "../db/rainbow_glass.json" with { type: "json" };
+import rainbowLitDb from "../db/rainbow_lit.json" with { type: "json" };
+import rainbowMetalDb from "../db/rainbow_metal.json" with { type: "json" };
+
 export const minecraftPalette: PaletteSource = {
   "minecraft:black_wool": "#1a1c1c",
   "minecraft:blue_wool": "#3c44a4",
@@ -227,12 +233,22 @@ export const woolPalette: PaletteSource = {
   "minecraft:black_wool": "#1a1c1c"
 };
 
+// Rainbow addon palettes (imported from db/ folder)
+export const rainbowPalette: PaletteSource = rainbowDb;
+export const rainbowGlassPalette: PaletteSource = rainbowGlassDb;
+export const rainbowLitPalette: PaletteSource = rainbowLitDb;
+export const rainbowMetalPalette: PaletteSource = rainbowMetalDb;
+
 export const palettes = {
   minecraft: minecraftPalette,
   rgb: rgbPalette,
   glass: glassPalette,
   concrete: concretePalette,
-  wool: woolPalette
+  wool: woolPalette,
+  rainbow: rainbowPalette,
+  rainbowGlass: rainbowGlassPalette,
+  rainbowLit: rainbowLitPalette,
+  rainbowMetal: rainbowMetalPalette
 } as const;
 
 export type PaletteName = keyof typeof palettes;
