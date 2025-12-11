@@ -17,8 +17,7 @@ function getAverageColor(image: imagescript.Image): string {
 function createBlock({
   namespace,
   image,
-  gridSizeX,
-  gridSizeY,
+  gridSize,
   x,
   y,
   z = 1,
@@ -26,8 +25,7 @@ function createBlock({
 }: {
   namespace: string;
   image: imagescript.Image;
-  gridSizeX: number;
-  gridSizeY: number;
+  gridSize: number;
   x: number;
   y: number;
   z: number;
@@ -35,16 +33,16 @@ function createBlock({
 }): string {
   const sliceId = {
     front: `${namespace}_${x}_${y}_${z}`,
-    back: `${namespace}_${gridSizeX - x - 1}_${y}_${z}`,
-    top: `${namespace}_${x}_${gridSizeY - y - 1}_${z}`,
+    back: `${namespace}_${gridSize - x - 1}_${y}_${z}`,
+    top: `${namespace}_${x}_${gridSize - y - 1}_${z}`,
     bottom: `${namespace}_${x}_${y}_${z}`,
   };
 
   if (axis === "y") {
-    sliceId.front = `${namespace}_${x}_${z}_${gridSizeY - y - 1}`;
-    sliceId.back = `${namespace}_${gridSizeX - x - 1}_${z}_${gridSizeY - y - 1}`;
+    sliceId.front = `${namespace}_${x}_${z}_${gridSize - y - 1}`;
+    sliceId.back = `${namespace}_${gridSize - x - 1}_${z}_${gridSize - y - 1}`;
     sliceId.top = `${namespace}_${x}_${z}_${y}`;
-    sliceId.bottom = `${namespace}_${x}_${z}_${gridSizeY - y - 1}`;
+    sliceId.bottom = `${namespace}_${x}_${z}_${gridSize - y - 1}`;
   }
 
   const data = {
@@ -115,29 +113,14 @@ function createBlock({
 
 // TODO: Refactor function. It is redundant with rotateStructure function
 function rotateVolume(volume: number[][][], axis: Axis): number[][][] {
-  const depth = volume.length;
-  const gridSizeX = volume[0].length;
-  const gridSizeY = volume[0][0].length;
+  const rotatedVolume = volume.map((z) => z.map((y) => y.map(() => -1)));
 
-  // Create rotated volume with appropriate dimensions based on axis
-  let rotatedVolume: number[][][];
-  if (axis === "y") {
-    rotatedVolume = Array.from({ length: depth }, () =>
-      Array.from({ length: gridSizeY }, () => Array(gridSizeX).fill(-1))
-    );
-  } else if (axis === "x") {
-    rotatedVolume = Array.from({ length: gridSizeX }, () =>
-      Array.from({ length: depth }, () => Array(gridSizeY).fill(-1))
-    );
-  } else {
-    rotatedVolume = Array.from({ length: depth }, () =>
-      Array.from({ length: gridSizeX }, () => Array(gridSizeY).fill(-1))
-    );
-  }
+  const depth = volume.length;
+  const gridSize = volume[0].length;
 
   for (let z = 0; z < depth; z++) {
-    for (let x = 0; x < gridSizeX; x++) {
-      for (let y = 0; y < gridSizeY; y++) {
+    for (let x = 0; x < gridSize; x++) {
+      for (let y = 0; y < gridSize; y++) {
         const blockIdx = volume[z][x][y];
         if (axis === "y") {
           rotatedVolume[z][y][x] = blockIdx;
@@ -167,10 +150,8 @@ async function iterateDepth({
   merTexture,
   normalTexture,
   frames,
-  gridSizeX,
-  gridSizeY,
-  cropSizeX,
-  cropSizeY,
+  gridSize,
+  cropSize,
   depth,
   pbr,
 }: {
@@ -183,34 +164,30 @@ async function iterateDepth({
   merTexture: DecodedFrames;
   normalTexture: DecodedFrames;
   frames: DecodedFrames;
-  gridSizeX: number;
-  gridSizeY: number;
-  cropSizeX: number;
-  cropSizeY: number;
+  gridSize: number;
+  cropSize: number;
   depth: number;
   pbr: boolean;
 }) {
   for (let z = 0; z < depth; z++) {
-    const resizeToX = gridSizeX * cropSizeX;
-    const resizeToY = gridSizeY * cropSizeY;
+    const resizeTo = gridSize * cropSize;
     const frame: imagescript.Image = (
       frames[z].clone() as imagescript.Image
-    ).resize(resizeToX, resizeToY);
+    ).resize(resizeTo, resizeTo);
 
-    for (let x = 0; x < gridSizeX; x++) {
-      for (let y = 0; y < gridSizeY; y++) {
+    for (let x = 0; x < gridSize; x++) {
+      for (let y = 0; y < gridSize; y++) {
         const sliceId = `${namespace}_${x}_${y}_${z}`;
-        const xPos = x * cropSizeX;
-        const yPos = y * cropSizeY;
-        const slice = frame.clone().crop(xPos, yPos, cropSizeX, cropSizeY);
+        const xPos = x * cropSize;
+        const yPos = y * cropSize;
+        const slice = frame.clone().crop(xPos, yPos, cropSize, cropSize);
 
         addon.file(
           `bp/blocks/${sliceId}.block.json`,
           createBlock({
             namespace,
             image: slice,
-            gridSizeX,
-            gridSizeY,
+            gridSize,
             x,
             y,
             z,
@@ -233,8 +210,8 @@ async function iterateDepth({
               `rp/textures/blocks/${sliceId}_mer.png`,
               await merTexture[z]
                 .clone()
-                .resize(resizeToX, resizeToY)
-                .crop(xPos, yPos, cropSizeX, cropSizeY)
+                .resize(resizeTo, resizeTo)
+                .crop(xPos, yPos, cropSize, cropSize)
                 .encode(),
             );
             textureSet.metalness_emissive_roughness = `${sliceId}_mer`;
@@ -247,8 +224,8 @@ async function iterateDepth({
               `rp/textures/blocks/${sliceId}_normal.png`,
               await normalTexture[z]
                 .clone()
-                .resize(resizeToX, resizeToY)
-                .crop(xPos, yPos, cropSizeX, cropSizeY)
+                .resize(resizeTo, resizeTo)
+                .crop(xPos, yPos, cropSize, cropSize)
                 .encode(),
             );
             textureSet.normal = `${sliceId}_normal`;
@@ -312,10 +289,8 @@ async function createFlipbook({
   merTexture,
   normalTexture,
   frames,
-  gridSizeX,
-  gridSizeY,
-  cropSizeX,
-  cropSizeY,
+  gridSize,
+  cropSize,
   pbr,
   axis,
 }: {
@@ -328,10 +303,8 @@ async function createFlipbook({
   merTexture: DecodedFrames;
   normalTexture: DecodedFrames;
   frames: DecodedFrames;
-  gridSizeX: number;
-  gridSizeY: number;
-  cropSizeX: number;
-  cropSizeY: number;
+  gridSize: number;
+  cropSize: number;
   pbr: boolean;
   axis: Axis;
 }) {
@@ -344,15 +317,15 @@ async function createFlipbook({
 
   const tickSpeed = 10;
 
-  for (let x = 0; x < gridSizeX; x++) {
-    for (let y = 0; y < gridSizeY; y++) {
+  for (let x = 0; x < gridSize; x++) {
+    for (let y = 0; y < gridSize; y++) {
       const sliceId = `${namespace}_${x}_${y}_1`;
 
       const flatFrames: imagescript.Image[] = frames.flat();
 
       const slice = await series2atlas(
         flatFrames.map((frame) =>
-          frame.clone().crop(x * cropSizeX, y * cropSizeY, cropSizeX, cropSizeY)
+          frame.clone().crop(x * cropSize, y * cropSize, cropSize, cropSize)
         ),
       );
 
@@ -361,8 +334,7 @@ async function createFlipbook({
         createBlock({
           namespace,
           image: slice,
-          gridSizeX,
-          gridSizeY,
+          gridSize,
           x,
           y,
           z: 1,
@@ -390,7 +362,7 @@ async function createFlipbook({
                 flatMerFrames.map((frame: imagescript.Image) =>
                   frame
                     .clone()
-                    .crop(x * cropSizeX, y * cropSizeY, cropSizeX, cropSizeY)
+                    .crop(x * cropSize, y * cropSize, cropSize, cropSize)
                 ),
               )
             ).encode(),
@@ -409,7 +381,7 @@ async function createFlipbook({
                 flatNormalFrames.map((frame: imagescript.Image) =>
                   frame
                     .clone()
-                    .crop(x * cropSizeX, y * cropSizeY, cropSizeX, cropSizeY)
+                    .crop(x * cropSize, y * cropSize, cropSize, cropSize)
                 ),
               )
             ).encode(),
@@ -569,22 +541,14 @@ export default async function img2mcaddon(
 
   const depth = frames > 1 ? 1 : decodedFrames.length;
 
-  // Calculate grid dimensions based on image aspect ratio
-  const imageWidth = decodedFrames[0].width;
-  const imageHeight = decodedFrames[0].height;
-  const aspectRatio = imageHeight / imageWidth;
-
-  // gridSize is used for the X dimension, calculate Y based on aspect ratio
-  const gridSizeX = gridSize;
-  const gridSizeY = Math.max(1, Math.round(gridSize * aspectRatio));
-
-  // Calculate crop sizes for each dimension
-  const cropSizeX = Math.min(resolution, Math.round(imageWidth / gridSizeX));
-  const cropSizeY = Math.min(resolution, Math.round(imageHeight / gridSizeY));
-
   const volume: number[][][] = Array.from(
     { length: depth },
-    () => Array.from({ length: gridSizeX }, () => Array(gridSizeY).fill(-1)),
+    () => Array.from({ length: gridSize }, () => Array(gridSize).fill(-1)),
+  );
+
+  const cropSize = Math.min(
+    resolution,
+    Math.round(decodedFrames[0].width / gridSize),
   );
 
   let flipbookVolume: number[][][] | undefined;
@@ -592,7 +556,7 @@ export default async function img2mcaddon(
   if (frames > 1) {
     flipbookVolume = Array.from(
       { length: 1 },
-      () => Array.from({ length: gridSizeX }, () => Array(gridSizeY).fill(-1)),
+      () => Array.from({ length: gridSize }, () => Array(gridSize).fill(-1)),
     );
 
     await createFlipbook({
@@ -605,10 +569,8 @@ export default async function img2mcaddon(
       merTexture,
       normalTexture,
       frames: decodedFrames,
-      gridSizeX,
-      gridSizeY,
-      cropSizeX,
-      cropSizeY,
+      gridSize,
+      cropSize,
       pbr,
       axis,
     });
@@ -623,10 +585,8 @@ export default async function img2mcaddon(
       merTexture,
       normalTexture,
       frames: decodedFrames,
-      gridSizeX,
-      gridSizeY,
-      cropSizeX,
-      cropSizeY,
+      gridSize,
+      cropSize,
       depth,
       pbr,
     });
@@ -634,8 +594,8 @@ export default async function img2mcaddon(
 
   const rotatedVolume = rotateVolume(flipbookVolume ?? volume, axis);
   const size: [number, number, number] = axis === "y"
-    ? [gridSizeX, depth, gridSizeY]
-    : [gridSizeX, gridSizeY, depth];
+    ? [gridSize, depth, gridSize]
+    : [gridSize, gridSize, depth];
 
   const flatVolume = rotatedVolume.flat(2);
   const waterLayer = Array.from({ length: flatVolume.length }, () => -1);
