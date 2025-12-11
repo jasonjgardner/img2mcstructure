@@ -210,6 +210,23 @@ async function loadImageElement(input: ImageInput | File): Promise<HTMLImageElem
 }
 
 /**
+ * Render an ImageFrame to a canvas element
+ */
+function renderFrameToCanvas(frame: ImageFrame): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  canvas.width = frame.width;
+  canvas.height = frame.height;
+  const ctx = canvas.getContext("2d")!;
+  const imageData = new ImageData(
+    new Uint8ClampedArray(frame.data),
+    frame.width,
+    frame.height,
+  );
+  ctx.putImageData(imageData, 0, 0);
+  return canvas;
+}
+
+/**
  * Serialize NBT structure to binary format
  */
 async function serializeNbt(
@@ -282,9 +299,13 @@ export default async function img2mcaddon(
 
   const namespace = baseName.replace(/\W/g, "_").substring(0, 16).toLowerCase();
 
+  // Render first frame to canvas for dimension calculations
+  const firstFrame = decodedFrames[0];
+  const img = renderFrameToCanvas(firstFrame);
+
   // Calculate grid dimensions based on image aspect ratio
-  const imageWidth = img.width;
-  const imageHeight = img.height;
+  const imageWidth = firstFrame.width;
+  const imageHeight = firstFrame.height;
   const aspectRatio = imageHeight / imageWidth;
 
   // gridSize is used for the X dimension, calculate Y based on aspect ratio
@@ -318,51 +339,6 @@ export default async function img2mcaddon(
     { length: depth },
     () => Array.from({ length: gridSizeX }, () => Array(gridSizeY).fill(-1)),
   );
-
-  // Process each grid cell
-  for (let x = 0; x < gridSizeX; x++) {
-    for (let y = 0; y < gridSizeY; y++) {
-      const sliceId = `${namespace}_${x}_${y}_0`;
-      const xPos = x * cropSizeX;
-      const yPos = y * cropSizeY;
-
-      // Slice the image
-      const { blob, avgColor } = await sliceImage(
-        canvas,
-        xPos,
-        yPos,
-        cropSizeX,
-        cropSizeY,
-        resolution,
-      );
-
-      // Add block definition
-      addon.file(
-        `bp/blocks/${sliceId}.block.json`,
-        createBlockJson(namespace, sliceId, avgColor),
-      );
-
-      // Add texture
-      addon.file(
-        `rp/textures/blocks/${sliceId}.png`,
-        await blob.arrayBuffer(),
-      );
-
-      // Add texture set
-      addon.file(
-        `rp/textures/blocks/${sliceId}.texture_set.json`,
-        JSON.stringify({
-          format_version: "1.16.100",
-          "minecraft:texture_set": {
-            color: sliceId,
-          },
-        }, null, 2),
-      );
-
-      // Update terrain data
-      terrainData[`${namespace}_${sliceId}`] = {
-        textures: `textures/blocks/${sliceId}`,
-      };
 
   // Flipbook textures for animation mode
   const flipbookTextures: Array<{
