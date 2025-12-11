@@ -22,7 +22,7 @@ var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require
   throw Error('Dynamic require of "' + x + '" is not supported');
 });
 
-// src/client/constants.ts
+// ../src/client/constants.ts
 var BLOCK_VERSION = 18153475;
 var NBT_DATA_VERSION = 3953;
 var BLOCK_FORMAT_VERSION = "1.20.80";
@@ -32,7 +32,7 @@ var MAX_HEIGHT = 256;
 var MAX_WIDTH = 256;
 var MAX_DEPTH = 256;
 
-// src/client/decode.ts
+// ../src/client/decode.ts
 function createImageFrame(imageData) {
   const { width, height, data } = imageData;
   return {
@@ -126,7 +126,7 @@ async function decodeFile(file, options = {}) {
   return decode(buffer, options);
 }
 
-// src/client/lib.ts
+// ../src/client/lib.ts
 function compareStates(a, b) {
   return Object.keys(a).length === Object.keys(b).length && Object.entries(a).sort().toString() === Object.entries(b).sort().toString();
 }
@@ -146,7 +146,7 @@ function rgb2hex(rgb) {
   return `#${rgb[0].toString(16).padStart(2, "0")}${rgb[1].toString(16).padStart(2, "0")}${rgb[2].toString(16).padStart(2, "0")}`;
 }
 
-// src/client/palette.ts
+// ../src/client/palette.ts
 function createPalette(db) {
   const blockPalette = [];
   for (const idx in db) {
@@ -169,7 +169,7 @@ function createPalette(db) {
   return blockPalette;
 }
 
-// src/client/rotate.ts
+// ../src/client/rotate.ts
 function rotateOverY(structure) {
   const {
     size,
@@ -243,7 +243,7 @@ function rotateStructure(structure, axis) {
   return rotateOverX(structure);
 }
 
-// src/client/mcstructure.ts
+// ../src/client/mcstructure.ts
 function convertBlock(c, palette) {
   const [r, g, b, a] = colorToRGBA(c);
   if (a < 128) {
@@ -338,7 +338,7 @@ async function img2mcstructure(input, options) {
   const blockPalette = Array.isArray(palette) ? palette : createPalette(palette);
   return await createMcStructure(img, blockPalette, axis, name);
 }
-// src/client/mcfunction.ts
+// ../src/client/mcfunction.ts
 function framesToMcfunction(frames, blocks, offset = [0, 0, 0]) {
   const len = Math.min(MAX_DEPTH, frames.length);
   const lines = [];
@@ -362,7 +362,7 @@ async function img2mcfunction(input, options) {
   const blockPalette = Array.isArray(palette) ? palette : createPalette(palette);
   return framesToMcfunction(frames, blockPalette, offset);
 }
-// src/client/schematic.ts
+// ../src/client/schematic.ts
 function convertBlock2(c, palette) {
   const [r, g, b, a] = colorToRGBA(c);
   if (a < 128) {
@@ -434,7 +434,7 @@ async function img2schematic(input, options) {
   const blockPalette = Array.isArray(palette) ? palette : createPalette(palette);
   return await createSchematic(img, blockPalette, axis, name);
 }
-// src/client/nbt.ts
+// ../src/client/nbt.ts
 function convertBlock3(c, palette) {
   const [r, g, b, a] = colorToRGBA(c);
   if (a < 128) {
@@ -510,7 +510,7 @@ async function img2nbt(input, options) {
   const blockPalette = Array.isArray(palette) ? palette : createPalette(palette);
   return await createNbtStructure(img, blockPalette, axis);
 }
-// src/client/mcaddon.ts
+// ../src/client/mcaddon.ts
 function getAverageColor(imageData) {
   const { data, width, height } = imageData;
   let r = 0, g = 0, b = 0;
@@ -790,7 +790,7 @@ async function img2mcaddon(input, options = {}) {
   }, null, 2));
   return await addon.generateAsync({ type: "uint8array" });
 }
-// src/client/vox.ts
+// ../src/client/vox.ts
 function readInt32(view, offset) {
   return view.getInt32(offset, true);
 }
@@ -1006,7 +1006,7 @@ async function vox2mcstructure(input, options) {
   });
 }
 
-// src/client/mod.ts
+// ../src/client/mod.ts
 function downloadBlob(data, filename, mimeType = "application/octet-stream") {
   const blob = new Blob([data], { type: mimeType });
   const url = URL.createObjectURL(blob);
@@ -1034,7 +1034,7 @@ function downloadMcaddon(data, filename = "addon.mcaddon") {
   downloadBlob(data, filename, "application/zip");
 }
 
-// db/rainbow.json
+// ../db/rainbow.json
 var rainbow_default = {
   "rainbow:blue_50_block": "#e5e8f4",
   "rainbow:blue_50_plate": "#e5e8f4",
@@ -1878,7 +1878,7 @@ var rainbow_default = {
   "rainbow:yellow_900_glass": "#201b0b"
 };
 
-// db/rainbow_glass.json
+// ../db/rainbow_glass.json
 var rainbow_glass_default = {
   "rainbow:blue_50_glass": "#e5e8f4",
   "rainbow:blue_100_glass": "#cbd2e8",
@@ -2022,7 +2022,7 @@ var rainbow_glass_default = {
   "rainbow:yellow_900_glass": "#201b0b"
 };
 
-// db/rainbow_lit.json
+// ../db/rainbow_lit.json
 var rainbow_lit_default = {
   "rainbow:blue_50_lit": "#e5e8f4",
   "rainbow:blue_50_lamp": "#e5e8f4",
@@ -2447,7 +2447,7 @@ var rainbow_lit_default = {
   "rainbow:yellow_900_glass": "#201b0b"
 };
 
-// db/rainbow_metal.json
+// ../db/rainbow_metal.json
 var rainbow_metal_default = {
   "rainbow:blue_50_plate": "#e5e8f4",
   "rainbow:blue_100_plate": "#cbd2e8",
@@ -2592,7 +2592,7 @@ var rainbow_metal_default = {
   "rainbow:yellow_900_glass": "#201b0b"
 };
 
-// demo/palettes.ts
+// palettes.ts
 var minecraftPalette = {
   "minecraft:black_wool": "#1a1c1c",
   "minecraft:blue_wool": "#3c44a4",
@@ -2827,7 +2827,7 @@ var palettes = {
   rainbowMetal: rainbowMetalPalette
 };
 
-// demo/index.ts
+// index.ts
 var CUSTOM_PALETTES_STORAGE_KEY = "img2mcstructure_custom_palettes";
 var imageInput;
 var voxInput;
@@ -2929,6 +2929,12 @@ function hexToRgb(hex) {
 }
 async function convert() {
   const format = formatSelect.value;
+  const validFormats = ["mcstructure", "mcfunction", "schematic", "nbt", "mcaddon"];
+  if (!validFormats.includes(format)) {
+    console.error(`Invalid format selected: "${format}". Valid formats: ${validFormats.join(", ")}`);
+    setStatus(`Invalid format: ${format}. Please refresh the page.`, "error");
+    return;
+  }
   if (inputType === "vox") {
     if (!currentVoxFile) {
       setStatus("Please select a VOX file", "error");
@@ -2989,7 +2995,8 @@ async function convert() {
         break;
       }
       default:
-        throw new Error(`Unknown format: ${format}`);
+        console.error(`Unexpected format in switch: "${format}", type: ${typeof format}`);
+        throw new Error(`Unknown format: ${format}. Please refresh the page and try again.`);
     }
     lastResult = result;
     lastFormat = format;
