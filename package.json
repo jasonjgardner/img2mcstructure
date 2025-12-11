@@ -2,6 +2,7 @@
   "type": "module",
   "scripts": {
     "build": "bun run format && bun build ./app/index.tsx > ./dist/bundle.js",
+    "build:demo": "bun build ./demo/index.ts --outfile ./demo/bundle.js --target browser",
     "start": "bun run build && bun run ./main.ts",
     "bump": "deno run -A jsr:@mys/bump@1"
   },

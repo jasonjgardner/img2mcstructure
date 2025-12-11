@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>img2mcstructure - Image to Minecraft Structure Converter</title>
+  <style>
+    :root {
+      --bg-color: #1a1a2e;
+      --card-bg: #16213e;
+      --accent: #0f3460;
+      --highlight: #e94560;
+      --text: #eaeaea;
+      --text-muted: #a0a0a0;
+      --success: #4ade80;
+      --error: #f87171;
+      --border-radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: var(--bg-color);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, var(--highlight), #ff6b9d);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 1rem;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--border-radius);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .card h2 {
+      font-size: 1.1rem;
+      margin-bottom: 16px;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .drop-zone {
+      border: 2px dashed var(--accent);
+      border-radius: var(--border-radius);
+      padding: 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .drop-zone:hover,
+    .drop-zone.drag-over {
+      border-color: var(--highlight);
+      background: rgba(233, 69, 96, 0.1);
+    }
+
+    .drop-zone p {
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .drop-zone .hint {
+      font-size: 0.85rem;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .preview-section {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .preview-container {
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .preview-canvas-wrapper {
+      background: #0d0d1a;
+      border-radius: var(--border-radius);
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 200px;
+    }
+
+    #previewCanvas {
+      max-width: 100%;
+      image-rendering: pixelated;
+    }
+
+    .options-container {
+      flex: 1;
+      min-width: 250px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    select,
+    input[type="text"] {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--accent);
+      border: 1px solid transparent;
+      border-radius: var(--border-radius);
+      color: var(--text);
+      font-size: 1rem;
+      transition: border-color 0.2s;
+    }
+
+    select:focus,
+    input[type="text"]:focus {
+      outline: none;
+      border-color: var(--highlight);
+    }
+
+    select option {
+      background: var(--card-bg);
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: var(--border-radius);
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--highlight);
+      color: white;
+      width: 100%;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: #ff4d6d;
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: var(--accent);
+      color: var(--text);
+    }
+
+    .btn-secondary:hover {
+      background: #1a4a80;
+    }
+
+    .status {
+      padding: 12px 16px;
+      border-radius: var(--border-radius);
+      margin-top: 16px;
+      font-size: 0.9rem;
+    }
+
+    .status.info {
+      background: rgba(59, 130, 246, 0.2);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .status.success {
+      background: rgba(74, 222, 128, 0.2);
+      border: 1px solid rgba(74, 222, 128, 0.3);
+      color: var(--success);
+    }
+
+    .status.error {
+      background: rgba(248, 113, 113, 0.2);
+      border: 1px solid rgba(248, 113, 113, 0.3);
+      color: var(--error);
+    }
+
+    #downloadSection {
+      display: none;
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid var(--accent);
+    }
+
+    .download-row {
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+    }
+
+    .download-row .form-group {
+      flex: 1;
+      margin-bottom: 0;
+    }
+
+    .download-row .btn {
+      flex-shrink: 0;
+    }
+
+    footer {
+      text-align: center;
+      padding: 20px;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    footer a {
+      color: var(--highlight);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 600px) {
+      .preview-section {
+        flex-direction: column;
+      }
+
+      .download-row {
+        flex-direction: column;
+      }
+
+      .download-row .btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>img2mcstructure</h1>
+      <p>Convert images to Minecraft structure files in your browser</p>
+    </header>
+
+    <div class="card">
+      <h2>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Upload Image
+      </h2>
+      <div id="dropZone" class="drop-zone">
+        <p>Drop your image here or click to browse</p>
+        <p class="hint">Supports PNG, JPEG, GIF (including animated)</p>
+      </div>
+      <input type="file" id="imageInput" accept="image/*">
+    </div>
+
+    <div class="card">
+      <h2>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </h2>
+      <div class="preview-section">
+        <div class="preview-container">
+          <div class="preview-canvas-wrapper">
+            <canvas id="previewCanvas" width="256" height="256"></canvas>
+          </div>
+        </div>
+        <div class="options-container">
+          <div class="form-group">
+            <label for="paletteSelect">Block Palette</label>
+            <select id="paletteSelect">
+              <option value="minecraft">Minecraft (Vanilla Blocks)</option>
+              <option value="concrete">Concrete Only</option>
+              <option value="wool">Wool Only</option>
+              <option value="glass">Stained Glass</option>
+              <option value="rgb">RGB (Custom Addon)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="formatSelect">Output Format</label>
+            <select id="formatSelect">
+              <option value="mcstructure">.mcstructure (Bedrock)</option>
+              <option value="mcfunction">.mcfunction (Commands)</option>
+              <option value="nbt">.nbt (Java Edition)</option>
+              <option value="schematic">.schematic (Legacy)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="axisSelect">Structure Axis</label>
+            <select id="axisSelect">
+              <option value="x">X (Default)</option>
+              <option value="y">Y (Flat)</option>
+              <option value="z">Z</option>
+            </select>
+          </div>
+          <button id="convertBtn" class="btn btn-primary">Convert Image</button>
+          <div id="status" class="status info">Ready - Select an image to convert</div>
+
+          <div id="downloadSection">
+            <div class="download-row">
+              <div class="form-group">
+                <label for="filenameInput">Filename</label>
+                <input type="text" id="filenameInput" placeholder="structure.mcstructure">
+              </div>
+              <button id="downloadBtn" class="btn btn-secondary">Download</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <p>
+        Made with the <a href="https://github.com/jasonjgardner/img2mcstructure" target="_blank">img2mcstructure</a> library
+        <br>
+        Runs entirely in your browser - no server uploads required
+      </p>
+    </footer>
+  </div>
+
+  <script type="module" src="./bundle.js"></script>
+</body>
+</html>
