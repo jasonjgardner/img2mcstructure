@@ -23,6 +23,26 @@ import {
   type PaletteName,
 } from "./palettes.ts";
 
+// Constants
+const CUSTOM_PALETTES_STORAGE_KEY = "img2mcstructure_custom_palettes";
+const CURRENT_PALETTE_STATE_KEY = "img2mcstructure_current_palette_state";
+
+// Interfaces
+interface EditableBlock {
+  id: string;
+  hexColor: string;
+  enabled: boolean;
+  states?: Record<string, unknown>;
+  version?: number;
+}
+
+interface CustomPalette {
+  name: string;
+  blocks: EditableBlock[];
+  basePalette: string;
+  createdAt: number;
+}
+
 // DOM Elements
 let imageInput: HTMLInputElement;
 let paletteSelect: HTMLSelectElement;
@@ -34,10 +54,25 @@ let statusEl: HTMLElement;
 let downloadSection: HTMLElement;
 let filenameInput: HTMLInputElement;
 
+// Palette Editor DOM Elements
+let paletteEditorModal: HTMLElement;
+let paletteSearchInput: HTMLInputElement;
+let paletteBlockList: HTMLElement;
+let enabledCountEl: HTMLElement;
+let totalCountEl: HTMLElement;
+let customPaletteNameInput: HTMLInputElement;
+let customPalettesGroup: HTMLOptGroupElement;
+let importPaletteInput: HTMLInputElement;
+
 // State
 let currentFile: File | null = null;
 let lastResult: Uint8Array | string | null = null;
 let lastFormat: string = "";
+
+// Palette Editor State
+let editableBlocks: EditableBlock[] = [];
+let currentBasePalette: string = "minecraft";
+let customPalettes: Map<string, CustomPalette> = new Map();
 
 function setStatus(message: string, type: "info" | "success" | "error" = "info") {
   statusEl.textContent = message;
@@ -77,8 +112,52 @@ async function previewImage(file: File) {
 }
 
 function getSelectedPalette(): PaletteSource | IBlock[] {
-  const paletteName = paletteSelect.value as PaletteName;
-  return palettes[paletteName];
+  const paletteName = paletteSelect.value;
+
+  // Check if it's a custom palette
+  if (paletteName.startsWith("custom:")) {
+    const customName = paletteName.replace("custom:", "");
+    const customPalette = customPalettes.get(customName);
+    if (customPalette) {
+      return editableBlocksToPaletteSource(customPalette.blocks);
+    }
+  }
+
+  // Return built-in palette
+  return palettes[paletteName as PaletteName];
+}
+
+// Convert editable blocks to palette source
+function editableBlocksToPaletteSource(blocks: EditableBlock[]): PaletteSource {
+  const source: PaletteSource = {};
+  for (const block of blocks) {
+    if (block.enabled) {
+      if (block.states && Object.keys(block.states).length > 0) {
+        source[block.id] = {
+          id: block.id,
+          hexColor: block.hexColor,
+          color: hexToRgb(block.hexColor),
+          states: block.states,
+          version: block.version || 18153475,
+        };
+      } else {
+        source[block.id] = block.hexColor;
+      }
+    }
+  }
+  return source;
+}
+
+// Helper function to convert hex to RGB array
+function hexToRgb(hex: string): [number, number, number] {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? [
+        parseInt(result[1], 16),
+        parseInt(result[2], 16),
+        parseInt(result[3], 16),
+      ]
+    : [0, 0, 0];
 }
 
 async function convert() {
@@ -193,6 +272,421 @@ function handleDrop(e: DragEvent) {
   }
 }
 
+// ============================================
+// Palette Editor Functions
+// ============================================
+
+// Load palette into editable blocks format
+function loadPaletteIntoEditor(paletteName: string) {
+  const palette = palettes[paletteName as PaletteName];
+  if (!palette) return;
+
+  currentBasePalette = paletteName;
+  editableBlocks = [];
+
+  if (Array.isArray(palette)) {
+    // IBlock[] format (e.g., rgbPalette)
+    for (const block of palette as IBlock[]) {
+      editableBlocks.push({
+        id: block.id,
+        hexColor: block.hexColor,
+        enabled: true,
+        states: block.states,
+        version: block.version,
+      });
+    }
+  } else {
+    // PaletteSource format (Record<string, string | IBlock>)
+    for (const [id, value] of Object.entries(palette)) {
+      if (typeof value === "string") {
+        editableBlocks.push({
+          id,
+          hexColor: value,
+          enabled: true,
+        });
+      } else {
+        editableBlocks.push({
+          id: value.id || id,
+          hexColor: value.hexColor,
+          enabled: true,
+          states: value.states,
+          version: value.version,
+        });
+      }
+    }
+  }
+
+  renderPaletteBlocks();
+  updatePaletteStats();
+}
+
+// Render palette blocks in the editor
+function renderPaletteBlocks(filterText: string = "") {
+  const filter = filterText.toLowerCase();
+  paletteBlockList.innerHTML = "";
+
+  const filteredBlocks = editableBlocks.filter(
+    (block) => !filter || block.id.toLowerCase().includes(filter)
+  );
+
+  if (filteredBlocks.length === 0) {
+    paletteBlockList.innerHTML = `
+      <div class="empty-state">
+        <p>No blocks found matching "${filterText}"</p>
+      </div>
+    `;
+    return;
+  }
+
+  for (let i = 0; i < filteredBlocks.length; i++) {
+    const block = filteredBlocks[i];
+    const originalIndex = editableBlocks.indexOf(block);
+
+    const item = document.createElement("div");
+    item.className = `palette-block-item${block.enabled ? "" : " disabled"}`;
+    item.dataset.index = originalIndex.toString();
+
+    item.innerHTML = `
+      <input type="checkbox" class="block-toggle" ${block.enabled ? "checked" : ""} data-index="${originalIndex}">
+      <input type="color" class="color-input" value="${block.hexColor}" data-index="${originalIndex}">
+      <span class="block-id" title="${block.id}">${block.id}</span>
+      <input type="text" class="hex-input" value="${block.hexColor}" data-index="${originalIndex}" maxlength="7">
+      <button class="btn-remove" data-index="${originalIndex}" title="Remove block">&times;</button>
+    `;
+
+    paletteBlockList.appendChild(item);
+  }
+
+  // Add event listeners
+  addBlockItemEventListeners();
+}
+
+// Add event listeners to block items
+function addBlockItemEventListeners() {
+  // Toggle checkboxes
+  paletteBlockList.querySelectorAll(".block-toggle").forEach((checkbox) => {
+    checkbox.addEventListener("change", (e) => {
+      const target = e.target as HTMLInputElement;
+      const index = parseInt(target.dataset.index || "0");
+      editableBlocks[index].enabled = target.checked;
+
+      const item = target.closest(".palette-block-item");
+      if (item) {
+        item.classList.toggle("disabled", !target.checked);
+      }
+
+      updatePaletteStats();
+    });
+  });
+
+  // Color inputs
+  paletteBlockList.querySelectorAll(".color-input").forEach((input) => {
+    input.addEventListener("input", (e) => {
+      const target = e.target as HTMLInputElement;
+      const index = parseInt(target.dataset.index || "0");
+      editableBlocks[index].hexColor = target.value;
+
+      // Update the hex text input
+      const item = target.closest(".palette-block-item");
+      const hexInput = item?.querySelector(".hex-input") as HTMLInputElement;
+      if (hexInput) {
+        hexInput.value = target.value;
+      }
+    });
+  });
+
+  // Hex text inputs
+  paletteBlockList.querySelectorAll(".hex-input").forEach((input) => {
+    input.addEventListener("input", (e) => {
+      const target = e.target as HTMLInputElement;
+      let value = target.value;
+
+      // Add # if missing
+      if (value && !value.startsWith("#")) {
+        value = "#" + value;
+      }
+
+      // Validate hex color
+      if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+        const index = parseInt(target.dataset.index || "0");
+        editableBlocks[index].hexColor = value;
+
+        // Update the color input
+        const item = target.closest(".palette-block-item");
+        const colorInput = item?.querySelector(".color-input") as HTMLInputElement;
+        if (colorInput) {
+          colorInput.value = value;
+        }
+      }
+    });
+
+    input.addEventListener("blur", (e) => {
+      const target = e.target as HTMLInputElement;
+      const index = parseInt(target.dataset.index || "0");
+      target.value = editableBlocks[index].hexColor;
+    });
+  });
+
+  // Remove buttons
+  paletteBlockList.querySelectorAll(".btn-remove").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      const target = e.target as HTMLButtonElement;
+      const index = parseInt(target.dataset.index || "0");
+      editableBlocks.splice(index, 1);
+      renderPaletteBlocks(paletteSearchInput.value);
+      updatePaletteStats();
+    });
+  });
+}
+
+// Update palette statistics
+function updatePaletteStats() {
+  const enabledCount = editableBlocks.filter((b) => b.enabled).length;
+  const totalCount = editableBlocks.length;
+
+  enabledCountEl.textContent = enabledCount.toString();
+  totalCountEl.textContent = totalCount.toString();
+}
+
+// Open palette editor modal
+function openPaletteEditor() {
+  const currentPalette = paletteSelect.value;
+
+  // If it's a custom palette, load it
+  if (currentPalette.startsWith("custom:")) {
+    const customName = currentPalette.replace("custom:", "");
+    const customPalette = customPalettes.get(customName);
+    if (customPalette) {
+      editableBlocks = JSON.parse(JSON.stringify(customPalette.blocks));
+      currentBasePalette = customPalette.basePalette;
+      customPaletteNameInput.value = customName;
+    }
+  } else {
+    // Load the built-in palette
+    loadPaletteIntoEditor(currentPalette);
+    customPaletteNameInput.value = "";
+  }
+
+  renderPaletteBlocks();
+  updatePaletteStats();
+  paletteEditorModal.classList.add("active");
+  document.body.style.overflow = "hidden";
+}
+
+// Close palette editor modal
+function closePaletteEditor() {
+  paletteEditorModal.classList.remove("active");
+  document.body.style.overflow = "";
+  paletteSearchInput.value = "";
+}
+
+// Add new block to palette
+function addNewBlock() {
+  const blockIdInput = document.getElementById("newBlockId") as HTMLInputElement;
+  const blockColorInput = document.getElementById("newBlockColor") as HTMLInputElement;
+
+  const blockId = blockIdInput.value.trim();
+  const hexColor = blockColorInput.value;
+
+  if (!blockId) {
+    alert("Please enter a block ID");
+    return;
+  }
+
+  // Check for duplicate
+  if (editableBlocks.some((b) => b.id === blockId)) {
+    alert("A block with this ID already exists in the palette");
+    return;
+  }
+
+  editableBlocks.push({
+    id: blockId,
+    hexColor,
+    enabled: true,
+  });
+
+  blockIdInput.value = "";
+  blockColorInput.value = "#808080";
+
+  renderPaletteBlocks(paletteSearchInput.value);
+  updatePaletteStats();
+}
+
+// Reset palette to default
+function resetPalette() {
+  if (confirm("Reset palette to the default? All customizations will be lost.")) {
+    loadPaletteIntoEditor(currentBasePalette);
+    customPaletteNameInput.value = "";
+  }
+}
+
+// Save custom palette
+function saveCustomPalette() {
+  const name = customPaletteNameInput.value.trim();
+
+  if (!name) {
+    alert("Please enter a name for your custom palette");
+    return;
+  }
+
+  // Check for reserved names
+  if (Object.keys(palettes).includes(name)) {
+    alert("This name is reserved for a built-in palette. Please choose a different name.");
+    return;
+  }
+
+  const customPalette: CustomPalette = {
+    name,
+    blocks: JSON.parse(JSON.stringify(editableBlocks)),
+    basePalette: currentBasePalette,
+    createdAt: Date.now(),
+  };
+
+  customPalettes.set(name, customPalette);
+  saveCustomPalettesToStorage();
+  updateCustomPalettesDropdown();
+
+  // Select the newly saved palette
+  paletteSelect.value = `custom:${name}`;
+
+  closePaletteEditor();
+  setStatus(`Custom palette "${name}" saved!`, "success");
+}
+
+// Delete custom palette
+function deleteCustomPalette(name: string) {
+  if (confirm(`Delete custom palette "${name}"?`)) {
+    customPalettes.delete(name);
+    saveCustomPalettesToStorage();
+    updateCustomPalettesDropdown();
+
+    // If the deleted palette was selected, switch to default
+    if (paletteSelect.value === `custom:${name}`) {
+      paletteSelect.value = "minecraft";
+    }
+  }
+}
+
+// Export palette as JSON
+function exportPalette() {
+  const paletteSource = editableBlocksToPaletteSource(editableBlocks);
+  const json = JSON.stringify(paletteSource, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${customPaletteNameInput.value || "custom-palette"}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// Import palette from JSON
+function importPalette(file: File) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const json = JSON.parse(e.target?.result as string);
+      editableBlocks = [];
+
+      // Handle both PaletteSource and IBlock[] formats
+      if (Array.isArray(json)) {
+        for (const block of json) {
+          editableBlocks.push({
+            id: block.id,
+            hexColor: block.hexColor,
+            enabled: true,
+            states: block.states,
+            version: block.version,
+          });
+        }
+      } else {
+        for (const [id, value] of Object.entries(json)) {
+          if (typeof value === "string") {
+            editableBlocks.push({
+              id,
+              hexColor: value,
+              enabled: true,
+            });
+          } else if (typeof value === "object" && value !== null) {
+            const block = value as IBlock;
+            editableBlocks.push({
+              id: block.id || id,
+              hexColor: block.hexColor,
+              enabled: true,
+              states: block.states,
+              version: block.version,
+            });
+          }
+        }
+      }
+
+      currentBasePalette = "imported";
+      const fileName = file.name.replace(/\.json$/i, "");
+      customPaletteNameInput.value = fileName;
+
+      renderPaletteBlocks();
+      updatePaletteStats();
+      setStatus(`Imported ${editableBlocks.length} blocks from ${file.name}`, "success");
+    } catch (err) {
+      alert("Failed to parse palette JSON. Please check the file format.");
+      console.error(err);
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ============================================
+// LocalStorage Functions
+// ============================================
+
+// Save custom palettes to localStorage
+function saveCustomPalettesToStorage() {
+  const data: Record<string, CustomPalette> = {};
+  customPalettes.forEach((palette, name) => {
+    data[name] = palette;
+  });
+  localStorage.setItem(CUSTOM_PALETTES_STORAGE_KEY, JSON.stringify(data));
+}
+
+// Load custom palettes from localStorage
+function loadCustomPalettesFromStorage() {
+  try {
+    const data = localStorage.getItem(CUSTOM_PALETTES_STORAGE_KEY);
+    if (data) {
+      const parsed = JSON.parse(data) as Record<string, CustomPalette>;
+      customPalettes.clear();
+      for (const [name, palette] of Object.entries(parsed)) {
+        customPalettes.set(name, palette);
+      }
+    }
+  } catch (err) {
+    console.error("Failed to load custom palettes from storage:", err);
+  }
+}
+
+// Update custom palettes dropdown
+function updateCustomPalettesDropdown() {
+  customPalettesGroup.innerHTML = "";
+
+  if (customPalettes.size === 0) {
+    // Hide the optgroup if no custom palettes
+    customPalettesGroup.style.display = "none";
+    return;
+  }
+
+  customPalettesGroup.style.display = "";
+
+  customPalettes.forEach((palette, name) => {
+    const option = document.createElement("option");
+    option.value = `custom:${name}`;
+    option.textContent = name;
+    customPalettesGroup.appendChild(option);
+  });
+}
+
 function init() {
   // Get DOM elements
   imageInput = document.getElementById("imageInput") as HTMLInputElement;
@@ -205,8 +699,31 @@ function init() {
   downloadSection = document.getElementById("downloadSection") as HTMLElement;
   filenameInput = document.getElementById("filenameInput") as HTMLInputElement;
 
+  // Palette Editor DOM elements
+  paletteEditorModal = document.getElementById("paletteEditorModal") as HTMLElement;
+  paletteSearchInput = document.getElementById("paletteSearchInput") as HTMLInputElement;
+  paletteBlockList = document.getElementById("paletteBlockList") as HTMLElement;
+  enabledCountEl = document.getElementById("enabledCount") as HTMLElement;
+  totalCountEl = document.getElementById("totalCount") as HTMLElement;
+  customPaletteNameInput = document.getElementById("customPaletteName") as HTMLInputElement;
+  customPalettesGroup = document.getElementById("customPalettesGroup") as HTMLOptGroupElement;
+  importPaletteInput = document.getElementById("importPaletteInput") as HTMLInputElement;
+
   const dropZone = document.getElementById("dropZone") as HTMLElement;
   const downloadBtn = document.getElementById("downloadBtn") as HTMLButtonElement;
+
+  // Palette Editor buttons
+  const editPaletteBtn = document.getElementById("editPaletteBtn") as HTMLButtonElement;
+  const closeModalBtn = document.getElementById("closeModalBtn") as HTMLButtonElement;
+  const importPaletteBtn = document.getElementById("importPaletteBtn") as HTMLButtonElement;
+  const exportPaletteBtn = document.getElementById("exportPaletteBtn") as HTMLButtonElement;
+  const addBlockBtn = document.getElementById("addBlockBtn") as HTMLButtonElement;
+  const resetPaletteBtn = document.getElementById("resetPaletteBtn") as HTMLButtonElement;
+  const savePaletteBtn = document.getElementById("savePaletteBtn") as HTMLButtonElement;
+
+  // Load custom palettes from localStorage
+  loadCustomPalettesFromStorage();
+  updateCustomPalettesDropdown();
 
   // Event listeners
   imageInput.addEventListener("change", (e) => {
@@ -230,6 +747,48 @@ function init() {
 
   // Click on drop zone to trigger file input
   dropZone.addEventListener("click", () => imageInput.click());
+
+  // Palette Editor event listeners
+  editPaletteBtn.addEventListener("click", openPaletteEditor);
+  closeModalBtn.addEventListener("click", closePaletteEditor);
+
+  // Close modal on overlay click
+  paletteEditorModal.addEventListener("click", (e) => {
+    if (e.target === paletteEditorModal) {
+      closePaletteEditor();
+    }
+  });
+
+  // Close modal on Escape key
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && paletteEditorModal.classList.contains("active")) {
+      closePaletteEditor();
+    }
+  });
+
+  // Search filter
+  paletteSearchInput.addEventListener("input", (e) => {
+    const target = e.target as HTMLInputElement;
+    renderPaletteBlocks(target.value);
+  });
+
+  // Import/Export buttons
+  importPaletteBtn.addEventListener("click", () => importPaletteInput.click());
+  importPaletteInput.addEventListener("change", (e) => {
+    const files = (e.target as HTMLInputElement).files;
+    if (files && files.length > 0) {
+      importPalette(files[0]);
+      importPaletteInput.value = "";
+    }
+  });
+  exportPaletteBtn.addEventListener("click", exportPalette);
+
+  // Add block button
+  addBlockBtn.addEventListener("click", addNewBlock);
+
+  // Reset and Save buttons
+  resetPaletteBtn.addEventListener("click", resetPalette);
+  savePaletteBtn.addEventListener("click", saveCustomPalette);
 
   setStatus("Ready - Select an image to convert", "info");
 }

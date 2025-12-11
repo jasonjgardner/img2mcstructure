@@ -2326,6 +2326,7 @@ var palettes = {
 };
 
 // demo/index.ts
+var CUSTOM_PALETTES_STORAGE_KEY = "img2mcstructure_custom_palettes";
 var imageInput;
 var paletteSelect;
 var formatSelect;
@@ -2335,9 +2336,20 @@ var previewCanvas;
 var statusEl;
 var downloadSection;
 var filenameInput;
+var paletteEditorModal;
+var paletteSearchInput;
+var paletteBlockList;
+var enabledCountEl;
+var totalCountEl;
+var customPaletteNameInput;
+var customPalettesGroup;
+var importPaletteInput;
 var currentFile = null;
 var lastResult = null;
 var lastFormat = "";
+var editableBlocks = [];
+var currentBasePalette = "minecraft";
+var customPalettes = new Map;
 function setStatus(message, type = "info") {
   statusEl.textContent = message;
   statusEl.className = `status ${type}`;
@@ -2371,7 +2383,41 @@ async function previewImage(file) {
 }
 function getSelectedPalette() {
   const paletteName = paletteSelect.value;
+  if (paletteName.startsWith("custom:")) {
+    const customName = paletteName.replace("custom:", "");
+    const customPalette = customPalettes.get(customName);
+    if (customPalette) {
+      return editableBlocksToPaletteSource(customPalette.blocks);
+    }
+  }
   return palettes[paletteName];
+}
+function editableBlocksToPaletteSource(blocks) {
+  const source = {};
+  for (const block of blocks) {
+    if (block.enabled) {
+      if (block.states && Object.keys(block.states).length > 0) {
+        source[block.id] = {
+          id: block.id,
+          hexColor: block.hexColor,
+          color: hexToRgb(block.hexColor),
+          states: block.states,
+          version: block.version || 18153475
+        };
+      } else {
+        source[block.id] = block.hexColor;
+      }
+    }
+  }
+  return source;
+}
+function hexToRgb(hex) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? [
+    parseInt(result[1], 16),
+    parseInt(result[2], 16),
+    parseInt(result[3], 16)
+  ] : [0, 0, 0];
 }
 async function convert() {
   if (!currentFile) {
@@ -2464,6 +2510,310 @@ function handleDrop(e) {
     }
   }
 }
+function loadPaletteIntoEditor(paletteName) {
+  const palette = palettes[paletteName];
+  if (!palette)
+    return;
+  currentBasePalette = paletteName;
+  editableBlocks = [];
+  if (Array.isArray(palette)) {
+    for (const block of palette) {
+      editableBlocks.push({
+        id: block.id,
+        hexColor: block.hexColor,
+        enabled: true,
+        states: block.states,
+        version: block.version
+      });
+    }
+  } else {
+    for (const [id, value] of Object.entries(palette)) {
+      if (typeof value === "string") {
+        editableBlocks.push({
+          id,
+          hexColor: value,
+          enabled: true
+        });
+      } else {
+        editableBlocks.push({
+          id: value.id || id,
+          hexColor: value.hexColor,
+          enabled: true,
+          states: value.states,
+          version: value.version
+        });
+      }
+    }
+  }
+  renderPaletteBlocks();
+  updatePaletteStats();
+}
+function renderPaletteBlocks(filterText = "") {
+  const filter = filterText.toLowerCase();
+  paletteBlockList.innerHTML = "";
+  const filteredBlocks = editableBlocks.filter((block) => !filter || block.id.toLowerCase().includes(filter));
+  if (filteredBlocks.length === 0) {
+    paletteBlockList.innerHTML = `
+      <div class="empty-state">
+        <p>No blocks found matching "${filterText}"</p>
+      </div>
+    `;
+    return;
+  }
+  for (let i = 0;i < filteredBlocks.length; i++) {
+    const block = filteredBlocks[i];
+    const originalIndex = editableBlocks.indexOf(block);
+    const item = document.createElement("div");
+    item.className = `palette-block-item${block.enabled ? "" : " disabled"}`;
+    item.dataset.index = originalIndex.toString();
+    item.innerHTML = `
+      <input type="checkbox" class="block-toggle" ${block.enabled ? "checked" : ""} data-index="${originalIndex}">
+      <input type="color" class="color-input" value="${block.hexColor}" data-index="${originalIndex}">
+      <span class="block-id" title="${block.id}">${block.id}</span>
+      <input type="text" class="hex-input" value="${block.hexColor}" data-index="${originalIndex}" maxlength="7">
+      <button class="btn-remove" data-index="${originalIndex}" title="Remove block">&times;</button>
+    `;
+    paletteBlockList.appendChild(item);
+  }
+  addBlockItemEventListeners();
+}
+function addBlockItemEventListeners() {
+  paletteBlockList.querySelectorAll(".block-toggle").forEach((checkbox) => {
+    checkbox.addEventListener("change", (e) => {
+      const target = e.target;
+      const index = parseInt(target.dataset.index || "0");
+      editableBlocks[index].enabled = target.checked;
+      const item = target.closest(".palette-block-item");
+      if (item) {
+        item.classList.toggle("disabled", !target.checked);
+      }
+      updatePaletteStats();
+    });
+  });
+  paletteBlockList.querySelectorAll(".color-input").forEach((input) => {
+    input.addEventListener("input", (e) => {
+      const target = e.target;
+      const index = parseInt(target.dataset.index || "0");
+      editableBlocks[index].hexColor = target.value;
+      const item = target.closest(".palette-block-item");
+      const hexInput = item?.querySelector(".hex-input");
+      if (hexInput) {
+        hexInput.value = target.value;
+      }
+    });
+  });
+  paletteBlockList.querySelectorAll(".hex-input").forEach((input) => {
+    input.addEventListener("input", (e) => {
+      const target = e.target;
+      let value = target.value;
+      if (value && !value.startsWith("#")) {
+        value = "#" + value;
+      }
+      if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+        const index = parseInt(target.dataset.index || "0");
+        editableBlocks[index].hexColor = value;
+        const item = target.closest(".palette-block-item");
+        const colorInput = item?.querySelector(".color-input");
+        if (colorInput) {
+          colorInput.value = value;
+        }
+      }
+    });
+    input.addEventListener("blur", (e) => {
+      const target = e.target;
+      const index = parseInt(target.dataset.index || "0");
+      target.value = editableBlocks[index].hexColor;
+    });
+  });
+  paletteBlockList.querySelectorAll(".btn-remove").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      const target = e.target;
+      const index = parseInt(target.dataset.index || "0");
+      editableBlocks.splice(index, 1);
+      renderPaletteBlocks(paletteSearchInput.value);
+      updatePaletteStats();
+    });
+  });
+}
+function updatePaletteStats() {
+  const enabledCount = editableBlocks.filter((b) => b.enabled).length;
+  const totalCount = editableBlocks.length;
+  enabledCountEl.textContent = enabledCount.toString();
+  totalCountEl.textContent = totalCount.toString();
+}
+function openPaletteEditor() {
+  const currentPalette = paletteSelect.value;
+  if (currentPalette.startsWith("custom:")) {
+    const customName = currentPalette.replace("custom:", "");
+    const customPalette = customPalettes.get(customName);
+    if (customPalette) {
+      editableBlocks = JSON.parse(JSON.stringify(customPalette.blocks));
+      currentBasePalette = customPalette.basePalette;
+      customPaletteNameInput.value = customName;
+    }
+  } else {
+    loadPaletteIntoEditor(currentPalette);
+    customPaletteNameInput.value = "";
+  }
+  renderPaletteBlocks();
+  updatePaletteStats();
+  paletteEditorModal.classList.add("active");
+  document.body.style.overflow = "hidden";
+}
+function closePaletteEditor() {
+  paletteEditorModal.classList.remove("active");
+  document.body.style.overflow = "";
+  paletteSearchInput.value = "";
+}
+function addNewBlock() {
+  const blockIdInput = document.getElementById("newBlockId");
+  const blockColorInput = document.getElementById("newBlockColor");
+  const blockId = blockIdInput.value.trim();
+  const hexColor = blockColorInput.value;
+  if (!blockId) {
+    alert("Please enter a block ID");
+    return;
+  }
+  if (editableBlocks.some((b) => b.id === blockId)) {
+    alert("A block with this ID already exists in the palette");
+    return;
+  }
+  editableBlocks.push({
+    id: blockId,
+    hexColor,
+    enabled: true
+  });
+  blockIdInput.value = "";
+  blockColorInput.value = "#808080";
+  renderPaletteBlocks(paletteSearchInput.value);
+  updatePaletteStats();
+}
+function resetPalette() {
+  if (confirm("Reset palette to the default? All customizations will be lost.")) {
+    loadPaletteIntoEditor(currentBasePalette);
+    customPaletteNameInput.value = "";
+  }
+}
+function saveCustomPalette() {
+  const name = customPaletteNameInput.value.trim();
+  if (!name) {
+    alert("Please enter a name for your custom palette");
+    return;
+  }
+  if (Object.keys(palettes).includes(name)) {
+    alert("This name is reserved for a built-in palette. Please choose a different name.");
+    return;
+  }
+  const customPalette = {
+    name,
+    blocks: JSON.parse(JSON.stringify(editableBlocks)),
+    basePalette: currentBasePalette,
+    createdAt: Date.now()
+  };
+  customPalettes.set(name, customPalette);
+  saveCustomPalettesToStorage();
+  updateCustomPalettesDropdown();
+  paletteSelect.value = `custom:${name}`;
+  closePaletteEditor();
+  setStatus(`Custom palette "${name}" saved!`, "success");
+}
+function exportPalette() {
+  const paletteSource = editableBlocksToPaletteSource(editableBlocks);
+  const json = JSON.stringify(paletteSource, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${customPaletteNameInput.value || "custom-palette"}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function importPalette(file) {
+  const reader = new FileReader;
+  reader.onload = (e) => {
+    try {
+      const json = JSON.parse(e.target?.result);
+      editableBlocks = [];
+      if (Array.isArray(json)) {
+        for (const block of json) {
+          editableBlocks.push({
+            id: block.id,
+            hexColor: block.hexColor,
+            enabled: true,
+            states: block.states,
+            version: block.version
+          });
+        }
+      } else {
+        for (const [id, value] of Object.entries(json)) {
+          if (typeof value === "string") {
+            editableBlocks.push({
+              id,
+              hexColor: value,
+              enabled: true
+            });
+          } else if (typeof value === "object" && value !== null) {
+            const block = value;
+            editableBlocks.push({
+              id: block.id || id,
+              hexColor: block.hexColor,
+              enabled: true,
+              states: block.states,
+              version: block.version
+            });
+          }
+        }
+      }
+      currentBasePalette = "imported";
+      const fileName = file.name.replace(/\.json$/i, "");
+      customPaletteNameInput.value = fileName;
+      renderPaletteBlocks();
+      updatePaletteStats();
+      setStatus(`Imported ${editableBlocks.length} blocks from ${file.name}`, "success");
+    } catch (err) {
+      alert("Failed to parse palette JSON. Please check the file format.");
+      console.error(err);
+    }
+  };
+  reader.readAsText(file);
+}
+function saveCustomPalettesToStorage() {
+  const data = {};
+  customPalettes.forEach((palette, name) => {
+    data[name] = palette;
+  });
+  localStorage.setItem(CUSTOM_PALETTES_STORAGE_KEY, JSON.stringify(data));
+}
+function loadCustomPalettesFromStorage() {
+  try {
+    const data = localStorage.getItem(CUSTOM_PALETTES_STORAGE_KEY);
+    if (data) {
+      const parsed = JSON.parse(data);
+      customPalettes.clear();
+      for (const [name, palette] of Object.entries(parsed)) {
+        customPalettes.set(name, palette);
+      }
+    }
+  } catch (err) {
+    console.error("Failed to load custom palettes from storage:", err);
+  }
+}
+function updateCustomPalettesDropdown() {
+  customPalettesGroup.innerHTML = "";
+  if (customPalettes.size === 0) {
+    customPalettesGroup.style.display = "none";
+    return;
+  }
+  customPalettesGroup.style.display = "";
+  customPalettes.forEach((palette, name) => {
+    const option = document.createElement("option");
+    option.value = `custom:${name}`;
+    option.textContent = name;
+    customPalettesGroup.appendChild(option);
+  });
+}
 function init() {
   imageInput = document.getElementById("imageInput");
   paletteSelect = document.getElementById("paletteSelect");
@@ -2474,8 +2824,25 @@ function init() {
   statusEl = document.getElementById("status");
   downloadSection = document.getElementById("downloadSection");
   filenameInput = document.getElementById("filenameInput");
+  paletteEditorModal = document.getElementById("paletteEditorModal");
+  paletteSearchInput = document.getElementById("paletteSearchInput");
+  paletteBlockList = document.getElementById("paletteBlockList");
+  enabledCountEl = document.getElementById("enabledCount");
+  totalCountEl = document.getElementById("totalCount");
+  customPaletteNameInput = document.getElementById("customPaletteName");
+  customPalettesGroup = document.getElementById("customPalettesGroup");
+  importPaletteInput = document.getElementById("importPaletteInput");
   const dropZone = document.getElementById("dropZone");
   const downloadBtn = document.getElementById("downloadBtn");
+  const editPaletteBtn = document.getElementById("editPaletteBtn");
+  const closeModalBtn = document.getElementById("closeModalBtn");
+  const importPaletteBtn = document.getElementById("importPaletteBtn");
+  const exportPaletteBtn = document.getElementById("exportPaletteBtn");
+  const addBlockBtn = document.getElementById("addBlockBtn");
+  const resetPaletteBtn = document.getElementById("resetPaletteBtn");
+  const savePaletteBtn = document.getElementById("savePaletteBtn");
+  loadCustomPalettesFromStorage();
+  updateCustomPalettesDropdown();
   imageInput.addEventListener("change", (e) => {
     const files = e.target.files;
     if (files && files.length > 0) {
@@ -2492,6 +2859,34 @@ function init() {
   dropZone.addEventListener("dragleave", handleDragLeave);
   dropZone.addEventListener("drop", handleDrop);
   dropZone.addEventListener("click", () => imageInput.click());
+  editPaletteBtn.addEventListener("click", openPaletteEditor);
+  closeModalBtn.addEventListener("click", closePaletteEditor);
+  paletteEditorModal.addEventListener("click", (e) => {
+    if (e.target === paletteEditorModal) {
+      closePaletteEditor();
+    }
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && paletteEditorModal.classList.contains("active")) {
+      closePaletteEditor();
+    }
+  });
+  paletteSearchInput.addEventListener("input", (e) => {
+    const target = e.target;
+    renderPaletteBlocks(target.value);
+  });
+  importPaletteBtn.addEventListener("click", () => importPaletteInput.click());
+  importPaletteInput.addEventListener("change", (e) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      importPalette(files[0]);
+      importPaletteInput.value = "";
+    }
+  });
+  exportPaletteBtn.addEventListener("click", exportPalette);
+  addBlockBtn.addEventListener("click", addNewBlock);
+  resetPaletteBtn.addEventListener("click", resetPalette);
+  savePaletteBtn.addEventListener("click", saveCustomPalette);
   setStatus("Ready - Select an image to convert", "info");
 }
 if (document.readyState === "loading") {
