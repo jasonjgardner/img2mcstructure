@@ -8,11 +8,14 @@ import {
   img2mcfunction,
   img2schematic,
   img2nbt,
+  img2mcaddon,
+  vox2mcstructure,
   createPalette,
   downloadMcstructure,
   downloadMcfunction,
   downloadSchematic,
   downloadNbt,
+  downloadMcaddon,
   decodeFile,
   type Axis,
   type IBlock,
@@ -45,6 +48,7 @@ interface CustomPalette {
 
 // DOM Elements
 let imageInput: HTMLInputElement;
+let voxInput: HTMLInputElement;
 let paletteSelect: HTMLSelectElement;
 let formatSelect: HTMLSelectElement;
 let axisSelect: HTMLSelectElement;
@@ -53,6 +57,9 @@ let previewCanvas: HTMLCanvasElement;
 let statusEl: HTMLElement;
 let downloadSection: HTMLElement;
 let filenameInput: HTMLInputElement;
+let mcaddonOptions: HTMLElement;
+let gridSizeInput: HTMLInputElement;
+let resolutionSelect: HTMLSelectElement;
 
 // Palette Editor DOM Elements
 let paletteEditorModal: HTMLElement;
@@ -66,8 +73,10 @@ let importPaletteInput: HTMLInputElement;
 
 // State
 let currentFile: File | null = null;
+let currentVoxFile: File | null = null;
 let lastResult: Uint8Array | string | null = null;
 let lastFormat: string = "";
+let inputType: "image" | "vox" = "image";
 
 // Palette Editor State
 let editableBlocks: EditableBlock[] = [];
@@ -161,7 +170,15 @@ function hexToRgb(hex: string): [number, number, number] {
 }
 
 async function convert() {
-  if (!currentFile) {
+  const format = formatSelect.value;
+
+  // Check if we have appropriate input
+  if (inputType === "vox") {
+    if (!currentVoxFile) {
+      setStatus("Please select a VOX file", "error");
+      return;
+    }
+  } else if (!currentFile) {
     setStatus("Please select an image file", "error");
     return;
   }
@@ -172,23 +189,53 @@ async function convert() {
   try {
     const palette = getSelectedPalette();
     const axis = axisSelect.value as Axis;
-    const format = formatSelect.value;
 
     let result: Uint8Array | string;
+    let fileExtension = format;
 
     switch (format) {
       case "mcstructure":
-        result = await img2mcstructure(currentFile, { palette, axis });
+        if (inputType === "vox" && currentVoxFile) {
+          result = await vox2mcstructure(currentVoxFile, { palette });
+        } else {
+          result = await img2mcstructure(currentFile!, { palette, axis });
+        }
         break;
       case "mcfunction":
-        result = await img2mcfunction(currentFile, { palette });
+        if (inputType === "vox") {
+          setStatus("VOX to mcfunction is not supported. Please use mcstructure format.", "error");
+          convertBtn.disabled = false;
+          return;
+        }
+        result = await img2mcfunction(currentFile!, { palette });
         break;
       case "schematic":
-        result = await img2schematic(currentFile, { palette, axis });
+        if (inputType === "vox") {
+          setStatus("VOX to schematic is not supported. Please use mcstructure format.", "error");
+          convertBtn.disabled = false;
+          return;
+        }
+        result = await img2schematic(currentFile!, { palette, axis });
         break;
       case "nbt":
-        result = await img2nbt(currentFile, { palette, axis });
+        if (inputType === "vox") {
+          setStatus("VOX to NBT is not supported. Please use mcstructure format.", "error");
+          convertBtn.disabled = false;
+          return;
+        }
+        result = await img2nbt(currentFile!, { palette, axis });
         break;
+      case "mcaddon": {
+        if (inputType === "vox") {
+          setStatus("VOX to mcaddon is not supported. Please use an image file.", "error");
+          convertBtn.disabled = false;
+          return;
+        }
+        const gridSize = parseInt(gridSizeInput?.value || "4", 10);
+        const resolution = parseInt(resolutionSelect?.value || "16", 10);
+        result = await img2mcaddon(currentFile!, { gridSize, resolution, axis });
+        break;
+      }
       default:
         throw new Error(`Unknown format: ${format}`);
     }
@@ -200,8 +247,9 @@ async function convert() {
     downloadSection.style.display = "block";
 
     // Set default filename
-    const baseName = currentFile.name.replace(/\.[^.]+$/, "");
-    filenameInput.value = `${baseName}.${format}`;
+    const sourceFile = inputType === "vox" ? currentVoxFile : currentFile;
+    const baseName = sourceFile?.name.replace(/\.[^.]+$/, "") || "structure";
+    filenameInput.value = `${baseName}.${fileExtension}`;
 
     const size = typeof result === "string"
       ? new TextEncoder().encode(result).length
@@ -237,6 +285,9 @@ function download() {
     case "nbt":
       downloadNbt(lastResult as Uint8Array, filename);
       break;
+    case "mcaddon":
+      downloadMcaddon(lastResult as Uint8Array, filename);
+      break;
   }
 }
 
@@ -260,14 +311,21 @@ function handleDrop(e: DragEvent) {
   const files = e.dataTransfer?.files;
   if (files && files.length > 0) {
     const file = files[0];
-    if (file.type.startsWith("image/")) {
+    const fileName = file.name.toLowerCase();
+
+    // Check for VOX files
+    if (fileName.endsWith(".vox")) {
+      handleVoxFile(file);
+    } else if (file.type.startsWith("image/") || fileName.match(/\.(png|jpg|jpeg|gif|webp|bmp)$/)) {
       currentFile = file;
+      currentVoxFile = null;
+      inputType = "image";
       previewImage(file);
       setStatus(`Selected: ${file.name}`, "info");
       downloadSection.style.display = "none";
       lastResult = null;
     } else {
-      setStatus("Please drop an image file", "error");
+      setStatus("Please drop an image file (.png, .jpg, .gif) or VOX file (.vox)", "error");
     }
   }
 }
@@ -687,9 +745,48 @@ function updateCustomPalettesDropdown() {
   });
 }
 
+// Toggle mcaddon options visibility based on format
+function toggleMcaddonOptions() {
+  if (mcaddonOptions) {
+    const format = formatSelect.value;
+    mcaddonOptions.style.display = format === "mcaddon" ? "block" : "none";
+  }
+}
+
+// Handle VOX file selection
+function handleVoxFile(file: File) {
+  currentVoxFile = file;
+  currentFile = null;
+  inputType = "vox";
+
+  // Clear the canvas and show VOX info
+  const ctx = previewCanvas.getContext("2d")!;
+  previewCanvas.width = 256;
+  previewCanvas.height = 128;
+  ctx.fillStyle = "#1a1a2e";
+  ctx.fillRect(0, 0, 256, 128);
+  ctx.fillStyle = "#e94560";
+  ctx.font = "14px monospace";
+  ctx.textAlign = "center";
+  ctx.fillText("VOX File Loaded", 128, 50);
+  ctx.fillStyle = "#a0a0a0";
+  ctx.font = "12px monospace";
+  ctx.fillText(file.name, 128, 75);
+  ctx.fillText(`${(file.size / 1024).toFixed(2)} KB`, 128, 95);
+
+  setStatus(`VOX file selected: ${file.name}`, "info");
+  downloadSection.style.display = "none";
+  lastResult = null;
+
+  // Auto-select mcstructure format for VOX files
+  formatSelect.value = "mcstructure";
+  toggleMcaddonOptions();
+}
+
 function init() {
   // Get DOM elements
   imageInput = document.getElementById("imageInput") as HTMLInputElement;
+  voxInput = document.getElementById("voxInput") as HTMLInputElement;
   paletteSelect = document.getElementById("paletteSelect") as HTMLSelectElement;
   formatSelect = document.getElementById("formatSelect") as HTMLSelectElement;
   axisSelect = document.getElementById("axisSelect") as HTMLSelectElement;
@@ -698,6 +795,9 @@ function init() {
   statusEl = document.getElementById("status") as HTMLElement;
   downloadSection = document.getElementById("downloadSection") as HTMLElement;
   filenameInput = document.getElementById("filenameInput") as HTMLInputElement;
+  mcaddonOptions = document.getElementById("mcaddonOptions") as HTMLElement;
+  gridSizeInput = document.getElementById("gridSizeInput") as HTMLInputElement;
+  resolutionSelect = document.getElementById("resolutionSelect") as HTMLSelectElement;
 
   // Palette Editor DOM elements
   paletteEditorModal = document.getElementById("paletteEditorModal") as HTMLElement;
@@ -730,12 +830,27 @@ function init() {
     const files = (e.target as HTMLInputElement).files;
     if (files && files.length > 0) {
       currentFile = files[0];
+      currentVoxFile = null;
+      inputType = "image";
       previewImage(currentFile);
       setStatus(`Selected: ${currentFile.name}`, "info");
       downloadSection.style.display = "none";
       lastResult = null;
     }
   });
+
+  // VOX file input
+  if (voxInput) {
+    voxInput.addEventListener("change", (e) => {
+      const files = (e.target as HTMLInputElement).files;
+      if (files && files.length > 0) {
+        handleVoxFile(files[0]);
+      }
+    });
+  }
+
+  // Format change listener
+  formatSelect.addEventListener("change", toggleMcaddonOptions);
 
   convertBtn.addEventListener("click", convert);
   downloadBtn.addEventListener("click", download);

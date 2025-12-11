@@ -25,6 +25,7 @@ var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require
 // src/client/constants.ts
 var BLOCK_VERSION = 18153475;
 var NBT_DATA_VERSION = 3953;
+var BLOCK_FORMAT_VERSION = "1.20.80";
 var DEFAULT_BLOCK = "minecraft:air";
 var MASK_BLOCK = DEFAULT_BLOCK;
 var MAX_HEIGHT = 256;
@@ -140,6 +141,9 @@ function getNearestColor(color, palette) {
 }
 function hex2rgb(hex) {
   return hex.match(/[^#]{1,2}/g)?.map((x) => Number.parseInt(x, 16));
+}
+function rgb2hex(rgb) {
+  return `#${rgb[0].toString(16).padStart(2, "0")}${rgb[1].toString(16).padStart(2, "0")}${rgb[2].toString(16).padStart(2, "0")}`;
 }
 
 // src/client/palette.ts
@@ -506,6 +510,501 @@ async function img2nbt(input, options) {
   const blockPalette = Array.isArray(palette) ? palette : createPalette(palette);
   return await createNbtStructure(img, blockPalette, axis);
 }
+// src/client/mcaddon.ts
+function getAverageColor(imageData) {
+  const { data, width, height } = imageData;
+  let r = 0, g = 0, b = 0;
+  const pixelCount = width * height;
+  for (let i = 0;i < data.length; i += 4) {
+    r += data[i];
+    g += data[i + 1];
+    b += data[i + 2];
+  }
+  return rgb2hex([
+    Math.round(r / pixelCount),
+    Math.round(g / pixelCount),
+    Math.round(b / pixelCount)
+  ]);
+}
+async function sliceImage(img, x, y, width, height, targetSize) {
+  const canvas = document.createElement("canvas");
+  canvas.width = targetSize;
+  canvas.height = targetSize;
+  const ctx = canvas.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, x, y, width, height, 0, 0, targetSize, targetSize);
+  const imageData = ctx.getImageData(0, 0, targetSize, targetSize);
+  const avgColor = getAverageColor(imageData);
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => {
+      resolve({ blob, avgColor });
+    }, "image/png");
+  });
+}
+function createBlockJson(namespace, sliceId, avgColor) {
+  const data = {
+    format_version: BLOCK_FORMAT_VERSION,
+    "minecraft:block": {
+      description: {
+        identifier: `${namespace}:${sliceId}`,
+        traits: {}
+      },
+      components: {
+        "minecraft:geometry": "minecraft:geometry.full_block",
+        "minecraft:map_color": avgColor,
+        "minecraft:material_instances": {
+          "*": {
+            texture: `${namespace}_${sliceId}`,
+            render_method: "opaque",
+            ambient_occlusion: true,
+            face_dimming: true
+          }
+        }
+      },
+      permutations: []
+    }
+  };
+  return JSON.stringify(data, null, 2);
+}
+function generateId(length = 7) {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
+  for (let i = 0;i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+function rotateVolume(volume, axis) {
+  const rotatedVolume = volume.map((z) => z.map((y) => y.map(() => -1)));
+  const depth = volume.length;
+  const gridSize = volume[0].length;
+  for (let z = 0;z < depth; z++) {
+    for (let x = 0;x < gridSize; x++) {
+      for (let y = 0;y < gridSize; y++) {
+        const blockIdx = volume[z][x][y];
+        if (axis === "y") {
+          rotatedVolume[z][y][x] = blockIdx;
+          continue;
+        }
+        if (axis === "x") {
+          rotatedVolume[x][z][y] = blockIdx;
+          continue;
+        }
+        rotatedVolume[z][x][y] = blockIdx;
+      }
+    }
+  }
+  return rotatedVolume;
+}
+async function loadImageElement(input) {
+  return new Promise((resolve, reject) => {
+    const img = new Image;
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    if (input instanceof File) {
+      const url = URL.createObjectURL(input);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve(img);
+      };
+      img.src = url;
+    } else if (typeof input === "string") {
+      img.src = input.startsWith("data:") ? input : `data:image/png;base64,${input}`;
+    } else {
+      const blob = new Blob([input]);
+      const url = URL.createObjectURL(blob);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve(img);
+      };
+      img.src = url;
+    }
+  });
+}
+async function serializeNbt2(data, options) {
+  const nbt = await import("nbtify");
+  const structure = JSON.stringify(data);
+  return await nbt.write(nbt.parse(structure), {
+    name: options.name,
+    endian: options.endian,
+    compression: null,
+    bedrockLevel: false
+  });
+}
+async function img2mcaddon(input, options = {}) {
+  const {
+    gridSize = 4,
+    resolution = 16,
+    axis = "z"
+  } = options;
+  const JSZip = (await import("https://esm.sh/jszip@3.10.1")).default;
+  const jobId = generateId(7);
+  const addon = new JSZip;
+  const img = await loadImageElement(input);
+  const baseName = input instanceof File ? input.name.replace(/\.[^.]+$/, "") : `mosaic_${jobId}`;
+  const namespace = baseName.replace(/\W/g, "_").substring(0, 16).toLowerCase();
+  const cropSize = Math.min(resolution, Math.round(img.width / gridSize));
+  const resizeTo = gridSize * cropSize;
+  const canvas = document.createElement("canvas");
+  canvas.width = resizeTo;
+  canvas.height = resizeTo;
+  const ctx = canvas.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, 0, 0, resizeTo, resizeTo);
+  const terrainData = {};
+  const blocksData = {};
+  const blockPalette = [];
+  const depth = 1;
+  const volume = Array.from({ length: depth }, () => Array.from({ length: gridSize }, () => Array(gridSize).fill(-1)));
+  for (let x = 0;x < gridSize; x++) {
+    for (let y = 0;y < gridSize; y++) {
+      const sliceId = `${namespace}_${x}_${y}_0`;
+      const xPos = x * cropSize;
+      const yPos = y * cropSize;
+      const { blob, avgColor } = await sliceImage(canvas, xPos, yPos, cropSize, cropSize, resolution);
+      addon.file(`bp/blocks/${sliceId}.block.json`, createBlockJson(namespace, sliceId, avgColor));
+      addon.file(`rp/textures/blocks/${sliceId}.png`, await blob.arrayBuffer());
+      addon.file(`rp/textures/blocks/${sliceId}.texture_set.json`, JSON.stringify({
+        format_version: "1.16.100",
+        "minecraft:texture_set": {
+          color: sliceId
+        }
+      }, null, 2));
+      terrainData[`${namespace}_${sliceId}`] = {
+        textures: `textures/blocks/${sliceId}`
+      };
+      const blockIdx = blockPalette.push({
+        name: `${namespace}:${sliceId}`,
+        states: {},
+        version: BLOCK_VERSION
+      }) - 1;
+      volume[0][x][y] = blockIdx;
+      blocksData[`${namespace}:${sliceId}`] = {
+        sound: "stone",
+        isotropic: false
+      };
+    }
+  }
+  addon.file("rp/blocks.json", JSON.stringify({
+    format_version: [1, 0, 0],
+    ...blocksData
+  }, null, 2));
+  const mipLevels = {
+    256: 0,
+    128: 1,
+    64: 2,
+    32: 3,
+    16: 4
+  }[resolution] ?? 0;
+  addon.file("rp/textures/terrain_texture.json", JSON.stringify({
+    resource_pack_name: namespace,
+    texture_name: "atlas.terrain",
+    padding: mipLevels / 2,
+    num_mip_levels: mipLevels,
+    texture_data: terrainData
+  }, null, 2));
+  const rotatedVolume = rotateVolume(volume, axis);
+  const size = axis === "y" ? [gridSize, depth, gridSize] : [gridSize, gridSize, depth];
+  const flatVolume = rotatedVolume.flat(2);
+  const waterLayer = Array.from({ length: flatVolume.length }, () => -1);
+  const tag = {
+    format_version: 1,
+    size,
+    structure: {
+      block_indices: [flatVolume, waterLayer],
+      entities: [],
+      palette: {
+        default: {
+          block_palette: blockPalette.slice().reverse(),
+          block_position_data: {}
+        }
+      }
+    },
+    structure_world_origin: [0, 0, 0]
+  };
+  const mcstructure = await serializeNbt2(tag, {
+    endian: "little",
+    name: `${namespace}_${jobId}`
+  });
+  addon.file(`bp/structures/mosaic/${namespace}.mcstructure`, mcstructure);
+  const iconCanvas = document.createElement("canvas");
+  iconCanvas.width = 150;
+  iconCanvas.height = 150;
+  const iconCtx = iconCanvas.getContext("2d");
+  iconCtx.imageSmoothingEnabled = false;
+  iconCtx.drawImage(img, 0, 0, 150, 150);
+  const iconBlob = await new Promise((resolve) => {
+    iconCanvas.toBlob((blob) => resolve(blob), "image/png");
+  });
+  const iconData = await iconBlob.arrayBuffer();
+  addon.file("rp/pack_icon.png", iconData);
+  addon.file("bp/pack_icon.png", iconData);
+  const rpUuid = crypto.randomUUID();
+  const rpModUuid = crypto.randomUUID();
+  const bpUuid = crypto.randomUUID();
+  const bpModUuid = crypto.randomUUID();
+  const bpVersion = [1, 0, 0];
+  const rpVersion = [1, 0, 0];
+  const minEngineVersion = [1, 21, 2];
+  addon.file("rp/manifest.json", JSON.stringify({
+    format_version: 2,
+    header: {
+      name: `Mosaic Resources: "${baseName}"`,
+      description: `A mosaic made from an image
+(${jobId})`,
+      uuid: rpUuid,
+      version: rpVersion,
+      min_engine_version: minEngineVersion
+    },
+    modules: [{
+      description: "Mosaic block textures",
+      type: "resources",
+      uuid: rpModUuid,
+      version: rpVersion
+    }],
+    dependencies: [{
+      uuid: bpUuid,
+      version: bpVersion
+    }]
+  }, null, 2));
+  addon.file("bp/manifest.json", JSON.stringify({
+    format_version: 2,
+    header: {
+      name: `Mosaic Blocks: "${baseName}"`,
+      description: `A mosaic made from an image
+(${jobId})`,
+      uuid: bpUuid,
+      version: bpVersion,
+      min_engine_version: minEngineVersion
+    },
+    modules: [{
+      description: "Mosaic block slices",
+      type: "data",
+      uuid: bpModUuid,
+      version: bpVersion
+    }],
+    dependencies: [{
+      uuid: rpUuid,
+      version: rpVersion
+    }]
+  }, null, 2));
+  return await addon.generateAsync({ type: "uint8array" });
+}
+// src/client/vox.ts
+function readInt32(view, offset) {
+  return view.getInt32(offset, true);
+}
+function readString(view, offset, length) {
+  let result = "";
+  for (let i = 0;i < length; i++) {
+    result += String.fromCharCode(view.getUint8(offset + i));
+  }
+  return result;
+}
+var DEFAULT_VOX_PALETTE = [
+  { r: 0, g: 0, b: 0, a: 0 },
+  ...Array.from({ length: 255 }, (_, i) => {
+    const hue = i * 137.5 % 360;
+    const sat = 0.7 + i % 10 * 0.03;
+    const val = 0.8 + i % 5 * 0.04;
+    const c = val * sat;
+    const x = c * (1 - Math.abs(hue / 60 % 2 - 1));
+    const m = val - c;
+    let r = 0, g = 0, b = 0;
+    if (hue < 60) {
+      r = c;
+      g = x;
+    } else if (hue < 120) {
+      r = x;
+      g = c;
+    } else if (hue < 180) {
+      g = c;
+      b = x;
+    } else if (hue < 240) {
+      g = x;
+      b = c;
+    } else if (hue < 300) {
+      r = x;
+      b = c;
+    } else {
+      r = c;
+      b = x;
+    }
+    return {
+      r: Math.round((r + m) * 255),
+      g: Math.round((g + m) * 255),
+      b: Math.round((b + m) * 255),
+      a: 255
+    };
+  })
+];
+function parseVox(data) {
+  const view = new DataView(data);
+  let offset = 0;
+  const magic = readString(view, offset, 4);
+  if (magic !== "VOX ") {
+    throw new Error("Invalid VOX file: bad magic number");
+  }
+  offset += 4;
+  const version = readInt32(view, offset);
+  if (version !== 150 && version !== 200) {
+    console.warn(`VOX version ${version} may not be fully supported`);
+  }
+  offset += 4;
+  const result = {
+    size: { x: 0, y: 0, z: 0 },
+    voxels: [],
+    palette: [...DEFAULT_VOX_PALETTE]
+  };
+  while (offset < data.byteLength) {
+    const chunkId = readString(view, offset, 4);
+    offset += 4;
+    const contentSize = readInt32(view, offset);
+    offset += 4;
+    const childrenSize = readInt32(view, offset);
+    offset += 4;
+    const contentEnd = offset + contentSize;
+    switch (chunkId) {
+      case "MAIN":
+        break;
+      case "SIZE":
+        result.size.x = readInt32(view, offset);
+        result.size.y = readInt32(view, offset + 4);
+        result.size.z = readInt32(view, offset + 8);
+        break;
+      case "XYZI": {
+        const numVoxels = readInt32(view, offset);
+        let voxelOffset = offset + 4;
+        for (let i = 0;i < numVoxels; i++) {
+          const x = view.getUint8(voxelOffset);
+          const y = view.getUint8(voxelOffset + 1);
+          const z = view.getUint8(voxelOffset + 2);
+          const colorIndex = view.getUint8(voxelOffset + 3);
+          result.voxels.push({ x, y, z, colorIndex });
+          voxelOffset += 4;
+        }
+        break;
+      }
+      case "RGBA": {
+        for (let i = 0;i < 255; i++) {
+          const paletteOffset = offset + i * 4;
+          result.palette[i + 1] = {
+            r: view.getUint8(paletteOffset),
+            g: view.getUint8(paletteOffset + 1),
+            b: view.getUint8(paletteOffset + 2),
+            a: view.getUint8(paletteOffset + 3)
+          };
+        }
+        break;
+      }
+      default:
+        break;
+    }
+    offset = contentEnd + childrenSize;
+  }
+  return result;
+}
+function convertBlock4(c, palette) {
+  if (c.a < 128) {
+    return {
+      id: MASK_BLOCK,
+      states: {},
+      version: BLOCK_VERSION
+    };
+  }
+  const nearestBlock = getNearestColor([c.r, c.g, c.b], palette);
+  if (!nearestBlock) {
+    return {
+      id: DEFAULT_BLOCK,
+      states: {},
+      version: BLOCK_VERSION
+    };
+  }
+  return {
+    id: nearestBlock.id,
+    states: nearestBlock.states ?? {},
+    version: nearestBlock.version ?? BLOCK_VERSION
+  };
+}
+function findBlock4(c, palette, blockPalette) {
+  const nearest = convertBlock4(c, palette);
+  const blockIdx = blockPalette.findIndex(({ name, states }) => name === nearest.id && compareStates(nearest.states, states));
+  return [nearest, blockIdx];
+}
+function constructDecoded4(vox, palette) {
+  const blockPalette = [];
+  const size = [vox.size.x, vox.size.z, vox.size.y];
+  const [width, height, depth] = size;
+  const memo = new Map;
+  const layer = Array.from({ length: width * height * depth }, () => -1);
+  const waterLayer = layer.slice();
+  for (const voxel of vox.voxels) {
+    const color = vox.palette[voxel.colorIndex];
+    if (!color || color.a < 128)
+      continue;
+    let [nearest, blockIdx] = memo.get(voxel.colorIndex) ?? findBlock4(color, palette, blockPalette);
+    if (blockIdx === -1) {
+      blockIdx = blockPalette.push({
+        version: nearest.version ?? BLOCK_VERSION,
+        name: nearest.id ?? DEFAULT_BLOCK,
+        states: nearest.states ?? {}
+      }) - 1;
+      memo.set(voxel.colorIndex, [nearest, blockIdx]);
+    }
+    const x = voxel.x;
+    const y = vox.size.z - 1 - voxel.z;
+    const z = voxel.y;
+    const key = (y * width + x) * depth + z;
+    if (key >= 0 && key < layer.length) {
+      layer[key] = blockIdx;
+    }
+  }
+  const filteredLayer = layer.map((i) => i === -1 ? -1 : i);
+  const tag = {
+    format_version: 1,
+    size,
+    structure_world_origin: [0, 0, 0],
+    structure: {
+      block_indices: [filteredLayer, waterLayer],
+      entities: [],
+      palette: {
+        default: {
+          block_palette: blockPalette,
+          block_position_data: {}
+        }
+      }
+    }
+  };
+  return tag;
+}
+async function serializeNbt3(data, options) {
+  const nbt = await import("nbtify");
+  const structure = JSON.stringify(data);
+  return await nbt.write(nbt.parse(structure), {
+    name: options.name,
+    endian: options.endian,
+    compression: null,
+    bedrockLevel: false
+  });
+}
+async function vox2mcstructure(input, options) {
+  const { palette } = options;
+  let buffer;
+  if (input instanceof File) {
+    buffer = await input.arrayBuffer();
+  } else if (input instanceof Uint8Array) {
+    buffer = input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength);
+  } else {
+    buffer = input;
+  }
+  const vox = parseVox(buffer);
+  const blockPalette = Array.isArray(palette) ? palette : createPalette(palette);
+  const structure = constructDecoded4(vox, blockPalette);
+  return await serializeNbt3(structure, {
+    endian: "little",
+    name: "vox2mcstructure"
+  });
+}
 
 // src/client/mod.ts
 function downloadBlob(data, filename, mimeType = "application/octet-stream") {
@@ -530,6 +1029,9 @@ function downloadSchematic(data, filename = "structure.schematic") {
 }
 function downloadNbt(data, filename = "structure.nbt") {
   downloadBlob(data, filename);
+}
+function downloadMcaddon(data, filename = "addon.mcaddon") {
+  downloadBlob(data, filename, "application/zip");
 }
 
 // db/rainbow.json
@@ -2328,6 +2830,7 @@ var palettes = {
 // demo/index.ts
 var CUSTOM_PALETTES_STORAGE_KEY = "img2mcstructure_custom_palettes";
 var imageInput;
+var voxInput;
 var paletteSelect;
 var formatSelect;
 var axisSelect;
@@ -2336,6 +2839,9 @@ var previewCanvas;
 var statusEl;
 var downloadSection;
 var filenameInput;
+var mcaddonOptions;
+var gridSizeInput;
+var resolutionSelect;
 var paletteEditorModal;
 var paletteSearchInput;
 var paletteBlockList;
@@ -2345,8 +2851,10 @@ var customPaletteNameInput;
 var customPalettesGroup;
 var importPaletteInput;
 var currentFile = null;
+var currentVoxFile = null;
 var lastResult = null;
 var lastFormat = "";
+var inputType = "image";
 var editableBlocks = [];
 var currentBasePalette = "minecraft";
 var customPalettes = new Map;
@@ -2420,7 +2928,13 @@ function hexToRgb(hex) {
   ] : [0, 0, 0];
 }
 async function convert() {
-  if (!currentFile) {
+  const format = formatSelect.value;
+  if (inputType === "vox") {
+    if (!currentVoxFile) {
+      setStatus("Please select a VOX file", "error");
+      return;
+    }
+  } else if (!currentFile) {
     setStatus("Please select an image file", "error");
     return;
   }
@@ -2429,29 +2943,60 @@ async function convert() {
   try {
     const palette = getSelectedPalette();
     const axis = axisSelect.value;
-    const format = formatSelect.value;
     let result;
+    let fileExtension = format;
     switch (format) {
       case "mcstructure":
-        result = await img2mcstructure(currentFile, { palette, axis });
+        if (inputType === "vox" && currentVoxFile) {
+          result = await vox2mcstructure(currentVoxFile, { palette });
+        } else {
+          result = await img2mcstructure(currentFile, { palette, axis });
+        }
         break;
       case "mcfunction":
+        if (inputType === "vox") {
+          setStatus("VOX to mcfunction is not supported. Please use mcstructure format.", "error");
+          convertBtn.disabled = false;
+          return;
+        }
         result = await img2mcfunction(currentFile, { palette });
         break;
       case "schematic":
+        if (inputType === "vox") {
+          setStatus("VOX to schematic is not supported. Please use mcstructure format.", "error");
+          convertBtn.disabled = false;
+          return;
+        }
         result = await img2schematic(currentFile, { palette, axis });
         break;
       case "nbt":
+        if (inputType === "vox") {
+          setStatus("VOX to NBT is not supported. Please use mcstructure format.", "error");
+          convertBtn.disabled = false;
+          return;
+        }
         result = await img2nbt(currentFile, { palette, axis });
         break;
+      case "mcaddon": {
+        if (inputType === "vox") {
+          setStatus("VOX to mcaddon is not supported. Please use an image file.", "error");
+          convertBtn.disabled = false;
+          return;
+        }
+        const gridSize = parseInt(gridSizeInput?.value || "4", 10);
+        const resolution = parseInt(resolutionSelect?.value || "16", 10);
+        result = await img2mcaddon(currentFile, { gridSize, resolution, axis });
+        break;
+      }
       default:
         throw new Error(`Unknown format: ${format}`);
     }
     lastResult = result;
     lastFormat = format;
     downloadSection.style.display = "block";
-    const baseName = currentFile.name.replace(/\.[^.]+$/, "");
-    filenameInput.value = `${baseName}.${format}`;
+    const sourceFile = inputType === "vox" ? currentVoxFile : currentFile;
+    const baseName = sourceFile?.name.replace(/\.[^.]+$/, "") || "structure";
+    filenameInput.value = `${baseName}.${fileExtension}`;
     const size = typeof result === "string" ? new TextEncoder().encode(result).length : result.length;
     setStatus(`Conversion complete! Size: ${(size / 1024).toFixed(2)} KB`, "success");
   } catch (error) {
@@ -2480,6 +3025,9 @@ function download() {
     case "nbt":
       downloadNbt(lastResult, filename);
       break;
+    case "mcaddon":
+      downloadMcaddon(lastResult, filename);
+      break;
   }
 }
 function handleDragOver(e) {
@@ -2499,14 +3047,19 @@ function handleDrop(e) {
   const files = e.dataTransfer?.files;
   if (files && files.length > 0) {
     const file = files[0];
-    if (file.type.startsWith("image/")) {
+    const fileName = file.name.toLowerCase();
+    if (fileName.endsWith(".vox")) {
+      handleVoxFile(file);
+    } else if (file.type.startsWith("image/") || fileName.match(/\.(png|jpg|jpeg|gif|webp|bmp)$/)) {
       currentFile = file;
+      currentVoxFile = null;
+      inputType = "image";
       previewImage(file);
       setStatus(`Selected: ${file.name}`, "info");
       downloadSection.style.display = "none";
       lastResult = null;
     } else {
-      setStatus("Please drop an image file", "error");
+      setStatus("Please drop an image file (.png, .jpg, .gif) or VOX file (.vox)", "error");
     }
   }
 }
@@ -2814,8 +3367,38 @@ function updateCustomPalettesDropdown() {
     customPalettesGroup.appendChild(option);
   });
 }
+function toggleMcaddonOptions() {
+  if (mcaddonOptions) {
+    const format = formatSelect.value;
+    mcaddonOptions.style.display = format === "mcaddon" ? "block" : "none";
+  }
+}
+function handleVoxFile(file) {
+  currentVoxFile = file;
+  currentFile = null;
+  inputType = "vox";
+  const ctx = previewCanvas.getContext("2d");
+  previewCanvas.width = 256;
+  previewCanvas.height = 128;
+  ctx.fillStyle = "#1a1a2e";
+  ctx.fillRect(0, 0, 256, 128);
+  ctx.fillStyle = "#e94560";
+  ctx.font = "14px monospace";
+  ctx.textAlign = "center";
+  ctx.fillText("VOX File Loaded", 128, 50);
+  ctx.fillStyle = "#a0a0a0";
+  ctx.font = "12px monospace";
+  ctx.fillText(file.name, 128, 75);
+  ctx.fillText(`${(file.size / 1024).toFixed(2)} KB`, 128, 95);
+  setStatus(`VOX file selected: ${file.name}`, "info");
+  downloadSection.style.display = "none";
+  lastResult = null;
+  formatSelect.value = "mcstructure";
+  toggleMcaddonOptions();
+}
 function init() {
   imageInput = document.getElementById("imageInput");
+  voxInput = document.getElementById("voxInput");
   paletteSelect = document.getElementById("paletteSelect");
   formatSelect = document.getElementById("formatSelect");
   axisSelect = document.getElementById("axisSelect");
@@ -2824,6 +3407,9 @@ function init() {
   statusEl = document.getElementById("status");
   downloadSection = document.getElementById("downloadSection");
   filenameInput = document.getElementById("filenameInput");
+  mcaddonOptions = document.getElementById("mcaddonOptions");
+  gridSizeInput = document.getElementById("gridSizeInput");
+  resolutionSelect = document.getElementById("resolutionSelect");
   paletteEditorModal = document.getElementById("paletteEditorModal");
   paletteSearchInput = document.getElementById("paletteSearchInput");
   paletteBlockList = document.getElementById("paletteBlockList");
@@ -2847,12 +3433,23 @@ function init() {
     const files = e.target.files;
     if (files && files.length > 0) {
       currentFile = files[0];
+      currentVoxFile = null;
+      inputType = "image";
       previewImage(currentFile);
       setStatus(`Selected: ${currentFile.name}`, "info");
       downloadSection.style.display = "none";
       lastResult = null;
     }
   });
+  if (voxInput) {
+    voxInput.addEventListener("change", (e) => {
+      const files = e.target.files;
+      if (files && files.length > 0) {
+        handleVoxFile(files[0]);
+      }
+    });
+  }
+  formatSelect.addEventListener("change", toggleMcaddonOptions);
   convertBtn.addEventListener("click", convert);
   downloadBtn.addEventListener("click", download);
   dropZone.addEventListener("dragover", handleDragOver);

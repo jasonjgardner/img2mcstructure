@@ -7,7 +7,8 @@
   <script type="importmap">
     {
       "imports": {
-        "nbtify": "https://esm.sh/nbtify@1.90.1"
+        "nbtify": "https://esm.sh/nbtify@1.90.1",
+        "https://esm.sh/jszip@3.10.1": "https://esm.sh/jszip@3.10.1"
       }
     }
   </script>
@@ -588,6 +589,53 @@
       padding: 8px 12px;
       font-size: 0.85rem;
     }
+
+    /* File type buttons */
+    .file-type-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      justify-content: center;
+    }
+
+    /* mcaddon options */
+    .mcaddon-options {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: var(--border-radius);
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+
+    .mcaddon-options .form-group {
+      margin-bottom: 12px;
+    }
+
+    .mcaddon-options .form-group:last-child {
+      margin-bottom: 0;
+    }
+
+    input[type="number"] {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--accent);
+      border: 1px solid transparent;
+      border-radius: var(--border-radius);
+      color: var(--text);
+      font-size: 1rem;
+      transition: border-color 0.2s;
+    }
+
+    input[type="number"]:focus {
+      outline: none;
+      border-color: var(--highlight);
+    }
+
+    /* Format info tooltip */
+    .format-info {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
   </style>
 </head>
 <body>
@@ -603,10 +651,15 @@
         Upload Image
       </h2>
       <div id="dropZone" class="drop-zone">
-        <p>Drop your image here or click to browse</p>
-        <p class="hint">Supports PNG, JPEG, GIF (including animated)</p>
+        <p>Drop your file here or click to browse</p>
+        <p class="hint">Supports PNG, JPEG, GIF (including animated), and VOX files</p>
       </div>
       <input type="file" id="imageInput" accept="image/*">
+      <input type="file" id="voxInput" accept=".vox" style="display: none;">
+      <div class="file-type-buttons">
+        <button type="button" class="btn btn-secondary btn-small" onclick="document.getElementById('imageInput').click()">Select Image</button>
+        <button type="button" class="btn btn-secondary btn-small" onclick="document.getElementById('voxInput').click()">Select VOX</button>
+      </div>
     </div>
 
     <div class="card">
@@ -653,7 +706,24 @@
               <option value="mcfunction">.mcfunction (Commands)</option>
               <option value="nbt">.nbt (Java Edition)</option>
               <option value="schematic">.schematic (Legacy)</option>
+              <option value="mcaddon">.mcaddon (Custom Blocks)</option>
             </select>
+          </div>
+          <div id="mcaddonOptions" class="mcaddon-options" style="display: none;">
+            <div class="form-group">
+              <label for="gridSizeInput">Grid Size (blocks per row)</label>
+              <input type="number" id="gridSizeInput" value="4" min="1" max="32" step="1">
+            </div>
+            <div class="form-group">
+              <label for="resolutionSelect">Texture Resolution</label>
+              <select id="resolutionSelect">
+                <option value="16">16x16 (Default)</option>
+                <option value="32">32x32</option>
+                <option value="64">64x64</option>
+                <option value="128">128x128</option>
+                <option value="256">256x256 (HD)</option>
+              </select>
+            </div>
           </div>
           <div class="form-group">
             <label for="axisSelect">Structure Axis</label>
