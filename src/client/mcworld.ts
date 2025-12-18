@@ -1,17 +1,22 @@
-import type { Axis, IBlock, PaletteSource } from "../types.ts";
-import * as nbt from "nbtify";
-import * as imagescript from "imagescript";
-import JSZip from "jszip";
-import decode from "../_decode.ts";
-import createPalette from "../_palette.ts";
-import {
-  BLOCK_VERSION,
-  DEFAULT_BLOCK,
-  MASK_BLOCK,
-} from "../_constants.ts";
-import { getNearestColor } from "../_lib.ts";
+/**
+ * Client-side mcworld conversion for img2mcstructure
+ * Uses browser-native Canvas API - no Node.js dependencies
+ */
 
-export { createPalette, decode };
+import type { Axis, IBlock, PaletteSource, RGB } from "../types.ts";
+import decode, {
+  colorToRGBA,
+  type DecodeOptions,
+  type DecodedFrames,
+  type ImageFrame,
+  type ImageInput,
+  decodeFile,
+} from "./decode.ts";
+import createPalette from "./palette.ts";
+import { BLOCK_VERSION, DEFAULT_BLOCK, MASK_BLOCK } from "./constants.ts";
+import { getNearestColor } from "./lib.ts";
+
+export { createPalette, decode, decodeFile };
 
 /**
  * World generation mode for mcworld conversion.
@@ -228,7 +233,6 @@ interface ILevelDat {
   worldStartCount: bigint;
   WorldVersion: number;
   XBLBroadcastIntent: number;
-  // Flat world settings
   FlatWorldLayers?: string;
 }
 
@@ -239,13 +243,6 @@ const DEFAULT_FLAT_LAYERS: IWorldLayer[] = [
   { block: "minecraft:bedrock", height: 1 },
   { block: "minecraft:dirt", height: 2 },
   { block: "minecraft:grass_block", height: 1 },
-];
-
-/**
- * Default layers for heightmap mode.
- */
-const DEFAULT_HEIGHTMAP_LAYERS: IWorldLayer[] = [
-  { block: "minecraft:bedrock", height: 1 },
 ];
 
 /**
@@ -267,7 +264,7 @@ function layersToFlatWorldJson(layers: IWorldLayer[]): string {
   }
 
   return JSON.stringify({
-    biome_id: 1, // Plains biome
+    biome_id: 1,
     block_layers: blockLayers,
     encoding_version: 6,
     structure_options: null,
@@ -278,14 +275,21 @@ function layersToFlatWorldJson(layers: IWorldLayer[]): string {
 /**
  * Create a base level.dat structure for Bedrock Edition.
  */
-function createLevelDat(options: IMcWorldOptions, imageWidth: number, imageHeight: number): ILevelDat {
+function createLevelDat(
+  options: IMcWorldOptions,
+  imageWidth: number,
+  imageHeight: number,
+): ILevelDat {
   const now = BigInt(Date.now());
   const spawnX = options.spawnPoint?.[0] ?? Math.floor(imageWidth / 2);
-  const spawnY = options.spawnPoint?.[1] ?? (options.mode === "heightmap" ? 100 : (options.baseHeight ?? 4) + 1);
+  const spawnY =
+    options.spawnPoint?.[1] ??
+    (options.mode === "heightmap" ? 100 : (options.baseHeight ?? 4) + 1);
   const spawnZ = options.spawnPoint?.[2] ?? Math.floor(imageHeight / 2);
 
   const flatLayers = options.layers ?? DEFAULT_FLAT_LAYERS;
-  const flatWorldJson = options.mode !== "heightmap" ? layersToFlatWorldJson(flatLayers) : undefined;
+  const flatWorldJson =
+    options.mode !== "heightmap" ? layersToFlatWorldJson(flatLayers) : undefined;
 
   return {
     abilities: {
@@ -335,7 +339,7 @@ function createLevelDat(options: IMcWorldOptions, imageWidth: number, imageHeigh
     freezedamage: true,
     functioncommandlimit: 10000,
     GameType: options.gameMode ?? 1,
-    Generator: options.mode === "heightmap" ? 1 : 2, // 1 = Default (for heightmap), 2 = Flat
+    Generator: options.mode === "heightmap" ? 1 : 2,
     hasBeenLoadedInCreative: true,
     hasLockedBehaviorPack: false,
     hasLockedResourcePack: false,
@@ -400,7 +404,6 @@ function createLevelDat(options: IMcWorldOptions, imageWidth: number, imageHeigh
 
 /**
  * Calculate pixel brightness (luminosity) from RGBA values.
- * Uses standard luminosity formula: 0.299*R + 0.587*G + 0.114*B
  */
 function getPixelBrightness(r: number, g: number, b: number): number {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
@@ -413,7 +416,7 @@ function convertBlock(
   c: number,
   palette: IBlock[],
 ): Pick<IBlock, "id" | "states" | "version"> {
-  const [r, g, b, a] = imagescript.Image.colorToRGBA(c);
+  const [r, g, b, a] = colorToRGBA(c);
 
   if (a < 128) {
     return {
@@ -444,12 +447,12 @@ function convertBlock(
  * Bedrock LevelDB key types for chunk data.
  */
 const ChunkKeyType = {
-  SubChunkPrefix: 47, // 0x2F - SubChunk data
-  Data2D: 45, // 0x2D - Biome and heightmap data
-  Data2DLegacy: 46, // 0x2E - Legacy biome data
-  Version: 44, // 0x2C - Chunk version
-  VersionNew: 118, // 0x76 - New chunk version
-  FinalizedState: 54, // 0x36 - Finalization state
+  SubChunkPrefix: 47,
+  Data2D: 45,
+  Data2DLegacy: 46,
+  Version: 44,
+  VersionNew: 118,
+  FinalizedState: 54,
 } as const;
 
 /**
@@ -465,13 +468,9 @@ function createChunkKey(
   const key = new Uint8Array(hasSubchunk ? 10 : 9);
   const view = new DataView(key.buffer);
 
-  // Chunk X (little-endian)
   view.setInt32(0, chunkX, true);
-  // Chunk Z (little-endian)
   view.setInt32(4, chunkZ, true);
-  // Key type
   key[8] = keyType;
-  // Subchunk Y (if applicable)
   if (hasSubchunk) {
     key[9] = subchunkY!;
   }
@@ -481,19 +480,21 @@ function createChunkKey(
 
 /**
  * Create subchunk data with blocks.
- * Subchunks are 16x16x16 sections of blocks.
  */
 function createSubChunkData(
-  blocks: Array<{ x: number; y: number; z: number; block: string; states?: Record<string, unknown> }>,
+  blocks: Array<{
+    x: number;
+    y: number;
+    z: number;
+    block: string;
+    states?: Record<string, unknown>;
+  }>,
 ): Uint8Array {
-  // Subchunk format version 9 (1.18+)
   const version = 9;
 
-  // Build palette
   const paletteMap = new Map<string, number>();
   const palette: Array<{ name: string; states: Record<string, unknown> }> = [];
 
-  // Always include air as first entry
   const airKey = "minecraft:air|{}";
   paletteMap.set(airKey, 0);
   palette.push({ name: "minecraft:air", states: {} });
@@ -507,34 +508,29 @@ function createSubChunkData(
     }
   }
 
-  // Create block indices (16x16x16 = 4096 blocks)
-  const blockIndices = new Uint16Array(4096).fill(0); // Fill with air
+  const blockIndices = new Uint16Array(4096).fill(0);
 
   for (const block of blocks) {
     const stateStr = JSON.stringify(block.states ?? {});
     const key = `${block.block}|${stateStr}`;
     const paletteIndex = paletteMap.get(key) ?? 0;
 
-    // Calculate index: (x * 256) + (z * 16) + y (Bedrock uses XZY order)
-    const index = (block.x * 256) + (block.z * 16) + block.y;
+    const index = block.x * 256 + block.z * 16 + block.y;
     if (index >= 0 && index < 4096) {
       blockIndices[index] = paletteIndex;
     }
   }
 
-  // Calculate bits per block (minimum 1, based on palette size)
   const bitsPerBlock = Math.max(1, Math.ceil(Math.log2(palette.length)));
   const blocksPerWord = Math.floor(32 / bitsPerBlock);
   const wordCount = Math.ceil(4096 / blocksPerWord);
 
-  // Create packed block data
   const packedData = new Uint32Array(wordCount);
   let wordIndex = 0;
   let bitOffset = 0;
 
   for (let i = 0; i < 4096; i++) {
     const value = blockIndices[i];
-
     packedData[wordIndex] |= (value & ((1 << bitsPerBlock) - 1)) << bitOffset;
     bitOffset += bitsPerBlock;
 
@@ -544,54 +540,40 @@ function createSubChunkData(
     }
   }
 
-  // Serialize palette using NBT
   const paletteNbt = palette.map((entry) => ({
     name: entry.name,
     states: entry.states,
   }));
 
-  // Build the subchunk buffer
   const paletteJson = JSON.stringify(paletteNbt);
   const paletteBytes = new TextEncoder().encode(paletteJson);
 
-  // Create the final buffer
-  // Format: version (1) + storage count (1) + [bits|type (1) + word count + words + palette size (4) + palette NBT]
-  const storageVersion = (bitsPerBlock << 1) | 0; // bits << 1, no runtime flag
-
-  // Calculate sizes
-  const headerSize = 2; // version + storage count
-  const storageHeaderSize = 1; // bits|type byte
+  const storageVersion = (bitsPerBlock << 1) | 0;
+  const headerSize = 2;
+  const storageHeaderSize = 1;
   const wordsSize = wordCount * 4;
   const paletteSizeBytes = 4;
 
-  // For simplicity, we'll create a basic format
-  // This is a simplified version - full implementation would use proper NBT
-  const buffer = new ArrayBuffer(headerSize + storageHeaderSize + wordsSize + paletteSizeBytes + paletteBytes.length);
+  const buffer = new ArrayBuffer(
+    headerSize + storageHeaderSize + wordsSize + paletteSizeBytes + paletteBytes.length,
+  );
   const view = new DataView(buffer);
   const bytes = new Uint8Array(buffer);
 
   let offset = 0;
 
-  // Version
   view.setUint8(offset++, version);
-
-  // Storage count (1 layer)
   view.setUint8(offset++, 1);
-
-  // Bits per block and type
   view.setUint8(offset++, storageVersion);
 
-  // Packed block data
   for (let i = 0; i < wordCount; i++) {
     view.setUint32(offset, packedData[i], true);
     offset += 4;
   }
 
-  // Palette size
   view.setInt32(offset, palette.length, true);
   offset += 4;
 
-  // Palette data (simplified - using string representation)
   bytes.set(paletteBytes, offset);
 
   return new Uint8Array(buffer);
@@ -605,15 +587,10 @@ function create2DData(
   chunkX: number,
   chunkZ: number,
 ): Uint8Array {
-  // 2D data format:
-  // - 256 int16 heightmap values (16x16)
-  // - 256 bytes for biome IDs (16x16)
-
   const buffer = new ArrayBuffer(256 * 2 + 256);
   const view = new DataView(buffer);
   const bytes = new Uint8Array(buffer);
 
-  // Heightmap (16x16 int16 values)
   for (let x = 0; x < 16; x++) {
     for (let z = 0; z < 16; z++) {
       const worldX = chunkX * 16 + x;
@@ -623,7 +600,6 @@ function create2DData(
     }
   }
 
-  // Biome data (all plains = 1)
   bytes.fill(1, 256 * 2);
 
   return bytes;
@@ -631,7 +607,6 @@ function create2DData(
 
 /**
  * Simple LevelDB-like storage for Minecraft worlds.
- * This creates a compatible format that Minecraft can read.
  */
 class SimpleLevelDB {
   private entries: Map<string, Uint8Array> = new Map();
@@ -641,31 +616,21 @@ class SimpleLevelDB {
   }
 
   private keyToString(key: Uint8Array): string {
-    return Array.from(key).map((b) => String.fromCharCode(b)).join("");
+    return Array.from(key)
+      .map((b) => String.fromCharCode(b))
+      .join("");
   }
 
-  /**
-   * Export as a set of files for the db/ directory.
-   * This creates a minimal LevelDB structure.
-   */
   async toFiles(): Promise<Map<string, Uint8Array>> {
     const files = new Map<string, Uint8Array>();
 
-    // Create a simple log file format
-    // For a proper implementation, we'd need full LevelDB support
-    // Instead, we'll create the structure that Minecraft expects
-
-    // CURRENT file - points to the manifest
     files.set("CURRENT", new TextEncoder().encode("MANIFEST-000001\n"));
 
-    // Create a simple manifest
     const manifest = this.createManifest();
     files.set("MANIFEST-000001", manifest);
 
-    // Create log file (empty)
     files.set("000001.log", new Uint8Array(0));
 
-    // Create SST file with our data
     const sst = this.createSST();
     files.set("000002.ldb", sst);
 
@@ -673,20 +638,13 @@ class SimpleLevelDB {
   }
 
   private createManifest(): Uint8Array {
-    // Minimal manifest format
-    // This is a simplified version
     return new Uint8Array([
-      // Version record
-      0x01, 0x01, 0x01, 0x00,
-      // Comparator record
-      0x02, 0x10, 0x6c, 0x65, 0x76, 0x65, 0x6c, 0x64, 0x62, 0x2e,
-      0x42, 0x79, 0x74, 0x65, 0x77, 0x69, 0x73, 0x65,
+      0x01, 0x01, 0x01, 0x00, 0x02, 0x10, 0x6c, 0x65, 0x76, 0x65, 0x6c, 0x64,
+      0x62, 0x2e, 0x42, 0x79, 0x74, 0x65, 0x77, 0x69, 0x73, 0x65,
     ]);
   }
 
   private createSST(): Uint8Array {
-    // Create a simple SST (Sorted String Table) format
-    // This is a minimal implementation
     const entries = Array.from(this.entries.entries());
     const chunks: Uint8Array[] = [];
 
@@ -703,9 +661,8 @@ class SimpleLevelDB {
       chunks.push(entry);
     }
 
-    // Combine all entries
     const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-    const result = new Uint8Array(totalLength + 8); // Add footer
+    const result = new Uint8Array(totalLength + 8);
     let offset = 0;
 
     for (const chunk of chunks) {
@@ -713,7 +670,6 @@ class SimpleLevelDB {
       offset += chunk.length;
     }
 
-    // Add magic footer
     result.set([0x57, 0xfb, 0x80, 0x8b, 0x24, 0x75, 0x47, 0xdb], offset);
 
     return result;
@@ -721,22 +677,33 @@ class SimpleLevelDB {
 }
 
 /**
+ * Get pixel color from ImageFrame at given coordinates.
+ */
+function getPixelAt(frame: ImageFrame, x: number, y: number): number {
+  const idx = ((y - 1) * frame.width + (x - 1)) * 4;
+  const r = frame.data[idx];
+  const g = frame.data[idx + 1];
+  const b = frame.data[idx + 2];
+  const a = frame.data[idx + 3];
+  return ((r << 24) | (g << 16) | (b << 8) | a) >>> 0;
+}
+
+/**
  * Generate chunk data for flat world mode.
- * Places the image blocks on top of the flat world layers.
  */
 async function generateFlatWorldChunks(
-  image: imagescript.Image,
+  image: ImageFrame,
   palette: IBlock[],
   options: IMcWorldOptions,
 ): Promise<SimpleLevelDB> {
   const db = new SimpleLevelDB();
   const layers = options.layers ?? DEFAULT_FLAT_LAYERS;
-  const baseHeight = options.baseHeight ?? layers.reduce((sum, l) => sum + l.height, 0);
+  const baseHeight =
+    options.baseHeight ?? layers.reduce((sum, l) => sum + l.height, 0);
 
   const width = image.width;
   const height = image.height;
 
-  // Calculate required chunks
   const minChunkX = 0;
   const maxChunkX = Math.ceil(width / 16);
   const minChunkZ = 0;
@@ -744,25 +711,31 @@ async function generateFlatWorldChunks(
 
   for (let chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
     for (let chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
-      // Chunk version
       const versionKey = createChunkKey(chunkX, chunkZ, ChunkKeyType.VersionNew);
-      db.put(versionKey, new Uint8Array([40])); // Version 40
+      db.put(versionKey, new Uint8Array([40]));
 
-      // Finalized state
-      const finalizedKey = createChunkKey(chunkX, chunkZ, ChunkKeyType.FinalizedState);
-      db.put(finalizedKey, new Uint8Array([2, 0, 0, 0])); // Fully generated
+      const finalizedKey = createChunkKey(
+        chunkX,
+        chunkZ,
+        ChunkKeyType.FinalizedState,
+      );
+      db.put(finalizedKey, new Uint8Array([2, 0, 0, 0]));
 
-      // Generate subchunks
-      const minSubchunkY = -4; // Y = -64
+      const minSubchunkY = -4;
       const maxSubchunkY = Math.ceil((baseHeight + 1) / 16);
 
       for (let subchunkY = minSubchunkY; subchunkY <= maxSubchunkY; subchunkY++) {
-        const blocks: Array<{ x: number; y: number; z: number; block: string; states?: Record<string, unknown> }> = [];
+        const blocks: Array<{
+          x: number;
+          y: number;
+          z: number;
+          block: string;
+          states?: Record<string, unknown>;
+        }> = [];
         const worldMinY = subchunkY * 16;
         const worldMaxY = worldMinY + 16;
 
-        // Add flat world layers
-        let currentY = -64; // Start at world minimum
+        let currentY = -64;
         for (const layer of layers) {
           for (let i = 0; i < layer.height; i++) {
             if (currentY >= worldMinY && currentY < worldMaxY) {
@@ -782,7 +755,6 @@ async function generateFlatWorldChunks(
           }
         }
 
-        // Add image blocks at base height
         if (baseHeight >= worldMinY && baseHeight < worldMaxY) {
           const localY = baseHeight - worldMinY;
 
@@ -792,7 +764,7 @@ async function generateFlatWorldChunks(
               const worldZ = chunkZ * 16 + z;
 
               if (worldX < width && worldZ < height) {
-                const pixelColor = image.getPixelAt(worldX + 1, worldZ + 1);
+                const pixelColor = getPixelAt(image, worldX + 1, worldZ + 1);
                 const block = convertBlock(pixelColor, palette);
 
                 if (block.id !== MASK_BLOCK) {
@@ -810,13 +782,17 @@ async function generateFlatWorldChunks(
         }
 
         if (blocks.length > 0) {
-          const subchunkKey = createChunkKey(chunkX, chunkZ, ChunkKeyType.SubChunkPrefix, subchunkY);
+          const subchunkKey = createChunkKey(
+            chunkX,
+            chunkZ,
+            ChunkKeyType.SubChunkPrefix,
+            subchunkY,
+          );
           const subchunkData = createSubChunkData(blocks);
           db.put(subchunkKey, subchunkData);
         }
       }
 
-      // 2D data (heightmap)
       const heightMap: number[][] = [];
       for (let x = 0; x < width + 16; x++) {
         heightMap[x] = [];
@@ -836,10 +812,9 @@ async function generateFlatWorldChunks(
 
 /**
  * Generate chunk data for height map mode.
- * Uses image brightness to determine terrain height.
  */
 async function generateHeightMapChunks(
-  image: imagescript.Image,
+  image: ImageFrame,
   palette: IBlock[],
   options: IMcWorldOptions,
 ): Promise<SimpleLevelDB> {
@@ -856,13 +831,12 @@ async function generateHeightMapChunks(
   const width = image.width;
   const height = image.height;
 
-  // Calculate height map from image
   const heightMap: number[][] = [];
   for (let x = 0; x < width; x++) {
     heightMap[x] = [];
     for (let z = 0; z < height; z++) {
-      const pixelColor = image.getPixelAt(x + 1, z + 1);
-      const [r, g, b, a] = imagescript.Image.colorToRGBA(pixelColor);
+      const pixelColor = getPixelAt(image, x + 1, z + 1);
+      const [r, g, b, a] = colorToRGBA(pixelColor);
 
       if (a < 128) {
         heightMap[x][z] = baseHeight;
@@ -874,31 +848,34 @@ async function generateHeightMapChunks(
     }
   }
 
-  // Calculate required chunks
   const minChunkX = 0;
   const maxChunkX = Math.ceil(width / 16);
   const minChunkZ = 0;
   const maxChunkZ = Math.ceil(height / 16);
 
-  // Calculate subchunk range
-  const worldMinHeight = baseHeight;
   const worldMaxHeight = baseHeight + maxHeight;
-  const minSubchunkY = Math.floor((worldMinHeight + 64) / 16) - 4;
   const maxSubchunkY = Math.ceil((worldMaxHeight + 64) / 16) - 4;
 
   for (let chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
     for (let chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
-      // Chunk version
       const versionKey = createChunkKey(chunkX, chunkZ, ChunkKeyType.VersionNew);
       db.put(versionKey, new Uint8Array([40]));
 
-      // Finalized state
-      const finalizedKey = createChunkKey(chunkX, chunkZ, ChunkKeyType.FinalizedState);
+      const finalizedKey = createChunkKey(
+        chunkX,
+        chunkZ,
+        ChunkKeyType.FinalizedState,
+      );
       db.put(finalizedKey, new Uint8Array([2, 0, 0, 0]));
 
-      // Generate subchunks
       for (let subchunkY = -4; subchunkY <= maxSubchunkY; subchunkY++) {
-        const blocks: Array<{ x: number; y: number; z: number; block: string; states?: Record<string, unknown> }> = [];
+        const blocks: Array<{
+          x: number;
+          y: number;
+          z: number;
+          block: string;
+          states?: Record<string, unknown>;
+        }> = [];
         const worldMinY = subchunkY * 16 - 64;
         const worldMaxY = worldMinY + 16;
 
@@ -907,27 +884,39 @@ async function generateHeightMapChunks(
             const worldX = chunkX * 16 + x;
             const worldZ = chunkZ * 16 + z;
 
-            // Get terrain height at this position
             const terrainHeight = heightMap[worldX]?.[worldZ] ?? baseHeight;
 
             for (let localY = 0; localY < 16; localY++) {
               const worldY = worldMinY + localY;
 
               if (worldY < baseHeight) {
-                // Below base - add fill block or bedrock at bottom
                 if (worldY === -64) {
                   blocks.push({ x, y: localY, z, block: bedrockBlock });
                 } else if (worldY < baseHeight) {
-                  blocks.push({ x, y: localY, z, block: fillBlock, states: fillBlockStates });
+                  blocks.push({
+                    x,
+                    y: localY,
+                    z,
+                    block: fillBlock,
+                    states: fillBlockStates,
+                  });
                 }
               } else if (worldY < terrainHeight) {
-                // Terrain body
                 if (worldX < width && worldZ < height) {
-                  blocks.push({ x, y: localY, z, block: heightBlock, states: heightBlockStates });
+                  blocks.push({
+                    x,
+                    y: localY,
+                    z,
+                    block: heightBlock,
+                    states: heightBlockStates,
+                  });
                 }
-              } else if (worldY === terrainHeight && worldX < width && worldZ < height) {
-                // Surface - use image color
-                const pixelColor = image.getPixelAt(worldX + 1, worldZ + 1);
+              } else if (
+                worldY === terrainHeight &&
+                worldX < width &&
+                worldZ < height
+              ) {
+                const pixelColor = getPixelAt(image, worldX + 1, worldZ + 1);
                 const block = convertBlock(pixelColor, palette);
 
                 if (block.id !== MASK_BLOCK) {
@@ -945,13 +934,17 @@ async function generateHeightMapChunks(
         }
 
         if (blocks.length > 0) {
-          const subchunkKey = createChunkKey(chunkX, chunkZ, ChunkKeyType.SubChunkPrefix, subchunkY);
+          const subchunkKey = createChunkKey(
+            chunkX,
+            chunkZ,
+            ChunkKeyType.SubChunkPrefix,
+            subchunkY,
+          );
           const subchunkData = createSubChunkData(blocks);
           db.put(subchunkKey, subchunkData);
         }
       }
 
-      // 2D data
       const data2DKey = createChunkKey(chunkX, chunkZ, ChunkKeyType.Data2D);
       const data2D = create2DData(heightMap, chunkX, chunkZ);
       db.put(data2DKey, data2D);
@@ -963,21 +956,20 @@ async function generateHeightMapChunks(
 
 /**
  * Generate chunk data for mixed layers mode.
- * Creates layers that blend based on position or image colors.
  */
 async function generateMixedLayersChunks(
-  image: imagescript.Image,
+  image: ImageFrame,
   palette: IBlock[],
   options: IMcWorldOptions,
 ): Promise<SimpleLevelDB> {
   const db = new SimpleLevelDB();
   const layers = options.layers ?? DEFAULT_FLAT_LAYERS;
-  const baseHeight = options.baseHeight ?? layers.reduce((sum, l) => sum + l.height, 0);
+  const baseHeight =
+    options.baseHeight ?? layers.reduce((sum, l) => sum + l.height, 0);
 
   const width = image.width;
   const height = image.height;
 
-  // Calculate required chunks
   const minChunkX = 0;
   const maxChunkX = Math.ceil(width / 16);
   const minChunkZ = 0;
@@ -985,20 +977,27 @@ async function generateMixedLayersChunks(
 
   for (let chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
     for (let chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
-      // Chunk version
       const versionKey = createChunkKey(chunkX, chunkZ, ChunkKeyType.VersionNew);
       db.put(versionKey, new Uint8Array([40]));
 
-      // Finalized state
-      const finalizedKey = createChunkKey(chunkX, chunkZ, ChunkKeyType.FinalizedState);
+      const finalizedKey = createChunkKey(
+        chunkX,
+        chunkZ,
+        ChunkKeyType.FinalizedState,
+      );
       db.put(finalizedKey, new Uint8Array([2, 0, 0, 0]));
 
-      // Generate subchunks
       const minSubchunkY = -4;
       const maxSubchunkY = Math.ceil((baseHeight + 1) / 16);
 
       for (let subchunkY = minSubchunkY; subchunkY <= maxSubchunkY; subchunkY++) {
-        const blocks: Array<{ x: number; y: number; z: number; block: string; states?: Record<string, unknown> }> = [];
+        const blocks: Array<{
+          x: number;
+          y: number;
+          z: number;
+          block: string;
+          states?: Record<string, unknown>;
+        }> = [];
         const worldMinY = subchunkY * 16 - 64;
 
         for (let x = 0; x < 16; x++) {
@@ -1009,7 +1008,6 @@ async function generateMixedLayersChunks(
             for (let localY = 0; localY < 16; localY++) {
               const worldY = worldMinY + localY;
 
-              // Calculate which layer this Y level belongs to
               let currentY = -64;
               let layerBlock: IWorldLayer | null = null;
 
@@ -1029,9 +1027,12 @@ async function generateMixedLayersChunks(
                   block: layerBlock.block,
                   states: layerBlock.states,
                 });
-              } else if (worldY === baseHeight && worldX < width && worldZ < height) {
-                // Top layer - use image color
-                const pixelColor = image.getPixelAt(worldX + 1, worldZ + 1);
+              } else if (
+                worldY === baseHeight &&
+                worldX < width &&
+                worldZ < height
+              ) {
+                const pixelColor = getPixelAt(image, worldX + 1, worldZ + 1);
                 const block = convertBlock(pixelColor, palette);
 
                 if (block.id !== MASK_BLOCK) {
@@ -1049,13 +1050,17 @@ async function generateMixedLayersChunks(
         }
 
         if (blocks.length > 0) {
-          const subchunkKey = createChunkKey(chunkX, chunkZ, ChunkKeyType.SubChunkPrefix, subchunkY);
+          const subchunkKey = createChunkKey(
+            chunkX,
+            chunkZ,
+            ChunkKeyType.SubChunkPrefix,
+            subchunkY,
+          );
           const subchunkData = createSubChunkData(blocks);
           db.put(subchunkKey, subchunkData);
         }
       }
 
-      // 2D data
       const heightMap: number[][] = [];
       for (let x = 0; x < width + 16; x++) {
         heightMap[x] = [];
@@ -1074,46 +1079,80 @@ async function generateMixedLayersChunks(
 }
 
 /**
+ * Create world icon from image frame using Canvas.
+ */
+function createWorldIcon(image: ImageFrame): Uint8Array {
+  const canvas = document.createElement("canvas");
+  canvas.width = 64;
+  canvas.height = 64;
+  const ctx = canvas.getContext("2d")!;
+
+  // Create ImageData from frame
+  const sourceCanvas = document.createElement("canvas");
+  sourceCanvas.width = image.width;
+  sourceCanvas.height = image.height;
+  const sourceCtx = sourceCanvas.getContext("2d")!;
+  const imageData = new ImageData(image.data, image.width, image.height);
+  sourceCtx.putImageData(imageData, 0, 0);
+
+  // Scale to 64x64
+  ctx.drawImage(sourceCanvas, 0, 0, 64, 64);
+
+  // Convert to JPEG Uint8Array
+  const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+  const base64 = dataUrl.split(",")[1];
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+/**
+ * Options for converting an image to mcworld
+ */
+export interface ConvertOptions extends Partial<IMcWorldOptions> {
+  /** Block palette source (JSON object or array) */
+  palette: PaletteSource | IBlock[];
+  /** Decode options */
+  decodeOptions?: DecodeOptions;
+}
+
+/**
  * Convert an image to a Minecraft Bedrock Edition world file (.mcworld).
+ * Client-side version - accepts raw image data.
  *
- * @param imgSrc - Image source (file path, URL, or base64)
- * @param blocks - Block palette to use for color matching
- * @param options - World generation options
- * @returns Promise resolving to the .mcworld file data
+ * @param input Image data (ArrayBuffer, Uint8Array, base64, or File)
+ * @param options Conversion options
+ * @returns .mcworld data as Uint8Array
  *
  * @example Create a flat world with image on top
  * ```ts
- * const world = await img2mcworld("./image.png", palette, {
+ * const world = await img2mcworld(imageFile, {
+ *   palette: blockPalette,
  *   mode: "flat",
  *   worldName: "My Image World",
- *   layers: [
- *     { block: "minecraft:bedrock", height: 1 },
- *     { block: "minecraft:stone", height: 3 },
- *   ],
  * });
- * await writeFile("world.mcworld", world);
- * ```
- *
- * @example Create a height map terrain
- * ```ts
- * const world = await img2mcworld("./heightmap.png", palette, {
- *   mode: "heightmap",
- *   maxHeight: 128,
- *   heightMapBlock: "minecraft:stone",
- * });
+ * downloadBlob(new Blob([world]), "world.mcworld");
  * ```
  */
 export default async function img2mcworld(
-  imgSrc: string,
-  blocks: IBlock[] | PaletteSource,
-  options: Partial<IMcWorldOptions> = {},
+  input: ImageInput | File,
+  options: ConvertOptions,
 ): Promise<Uint8Array> {
-  // Decode the image
-  const frames = await decode(imgSrc, true);
-  const image = frames[0] as imagescript.Image;
+  const { palette, decodeOptions, ...worldOptions } = options;
+
+  // Decode image
+  const frames =
+    input instanceof File
+      ? await decodeFile(input, { ...decodeOptions, clamp: true })
+      : await decode(input, { ...decodeOptions, clamp: true });
+
+  const image = frames[0];
 
   // Create palette if needed
-  const palette = Array.isArray(blocks) ? blocks : createPalette(blocks);
+  const blockPalette = Array.isArray(palette) ? palette : createPalette(palette);
 
   // Merge options with defaults
   const fullOptions: IMcWorldOptions = {
@@ -1121,14 +1160,18 @@ export default async function img2mcworld(
     worldName: "Image World",
     axis: "y",
     gameMode: 1,
-    ...options,
+    ...worldOptions,
   };
 
-  // Create the world ZIP archive
+  // Dynamic import of JSZip
+  const { default: JSZip } = await import("jszip");
   const world = new JSZip();
 
   // Generate level.dat
   const levelDat = createLevelDat(fullOptions, image.width, image.height);
+
+  // Dynamic import of nbtify
+  const nbt = await import("nbtify");
   const levelDatNbt = await nbt.write(nbt.parse(JSON.stringify(levelDat)), {
     // @ts-expect-error - name is not in the type definition
     name: "",
@@ -1137,11 +1180,11 @@ export default async function img2mcworld(
     bedrockLevel: true,
   });
 
-  // Add level.dat header (8 bytes: version + length)
+  // Add level.dat header
   const levelDatWithHeader = new Uint8Array(8 + levelDatNbt.length);
   const headerView = new DataView(levelDatWithHeader.buffer);
-  headerView.setUint32(0, 10, true); // Version
-  headerView.setUint32(4, levelDatNbt.length, true); // Length
+  headerView.setUint32(0, 10, true);
+  headerView.setUint32(4, levelDatNbt.length, true);
   levelDatWithHeader.set(levelDatNbt, 8);
 
   world.file("level.dat", levelDatWithHeader);
@@ -1150,23 +1193,23 @@ export default async function img2mcworld(
   // Create levelname.txt
   world.file("levelname.txt", fullOptions.worldName ?? "Image World");
 
-  // Generate world icon from image
-  const icon = image.clone().resize(64, 64);
-  world.file("world_icon.jpeg", await icon.encodeJPEG(90));
+  // Generate world icon
+  const icon = createWorldIcon(image);
+  world.file("world_icon.jpeg", icon);
 
   // Generate chunk data based on mode
   let chunkDb: SimpleLevelDB;
 
   switch (fullOptions.mode) {
     case "heightmap":
-      chunkDb = await generateHeightMapChunks(image, palette, fullOptions);
+      chunkDb = await generateHeightMapChunks(image, blockPalette, fullOptions);
       break;
     case "layers":
-      chunkDb = await generateMixedLayersChunks(image, palette, fullOptions);
+      chunkDb = await generateMixedLayersChunks(image, blockPalette, fullOptions);
       break;
     case "flat":
     default:
-      chunkDb = await generateFlatWorldChunks(image, palette, fullOptions);
+      chunkDb = await generateFlatWorldChunks(image, blockPalette, fullOptions);
       break;
   }
 
@@ -1181,67 +1224,55 @@ export default async function img2mcworld(
 }
 
 /**
+ * Convert a File to mcworld (convenience wrapper)
+ */
+export async function fileToMcworld(
+  file: File,
+  options: ConvertOptions,
+): Promise<Uint8Array> {
+  return img2mcworld(file, options);
+}
+
+/**
  * Create a height map world from an image.
  * Convenience function for heightmap mode.
- *
- * @param imgSrc - Image source
- * @param blocks - Block palette
- * @param maxHeight - Maximum terrain height (default: 64)
- * @param options - Additional options
  */
 export async function img2heightmap(
-  imgSrc: string,
-  blocks: IBlock[] | PaletteSource,
-  maxHeight = 64,
-  options: Partial<Omit<IMcWorldOptions, "mode">> = {},
+  input: ImageInput | File,
+  options: Omit<ConvertOptions, "mode"> & { maxHeight?: number },
 ): Promise<Uint8Array> {
-  return img2mcworld(imgSrc, blocks, {
+  return img2mcworld(input, {
     ...options,
     mode: "heightmap",
-    maxHeight,
+    maxHeight: options.maxHeight ?? 64,
   });
 }
 
 /**
  * Create a flat world with an image as the top layer.
  * Convenience function for flat mode.
- *
- * @param imgSrc - Image source
- * @param blocks - Block palette
- * @param layers - Layers below the image
- * @param options - Additional options
  */
 export async function img2flatworld(
-  imgSrc: string,
-  blocks: IBlock[] | PaletteSource,
-  layers: IWorldLayer[] = DEFAULT_FLAT_LAYERS,
-  options: Partial<Omit<IMcWorldOptions, "mode">> = {},
+  input: ImageInput | File,
+  options: Omit<ConvertOptions, "mode"> & { layers?: IWorldLayer[] },
 ): Promise<Uint8Array> {
-  return img2mcworld(imgSrc, blocks, {
+  return img2mcworld(input, {
     ...options,
     mode: "flat",
-    layers,
+    layers: options.layers ?? DEFAULT_FLAT_LAYERS,
   });
 }
 
 /**
  * Create a world with mixed layer types below the image.
  * Convenience function for layers mode.
- *
- * @param imgSrc - Image source
- * @param blocks - Block palette
- * @param layers - Layer definitions
- * @param options - Additional options
  */
 export async function img2layeredworld(
-  imgSrc: string,
-  blocks: IBlock[] | PaletteSource,
-  layers: IWorldLayer[],
-  options: Partial<Omit<IMcWorldOptions, "mode">> = {},
+  input: ImageInput | File,
+  options: Omit<ConvertOptions, "mode"> & { layers: IWorldLayer[] },
 ): Promise<Uint8Array> {
-  return img2mcworld(imgSrc, blocks, {
+  return img2mcworld(input, {
     ...options,
     mode: "layers",
-    layers,
   });
 }
