@@ -251,11 +251,11 @@ function createElement(
 /**
  * Convert mesh data to Minecraft model format
  */
-export function convertMeshData(
+export async function convertMeshData(
   meshes: ConvertedMesh[],
   textures: imagescript.Image[],
   options: Required<GltfConvertOptions>
-): GltfConvertResult {
+): Promise<GltfConvertResult> {
   const nFrames = meshes.length;
   const nTextures = textures.length;
   const nFaces = meshes[0].faces.length;
@@ -437,7 +437,7 @@ export function convertMeshData(
   }
 
   // Encode PNG
-  const pngData = out.encodeSync();
+  const pngData = await out.encode();
 
   return {
     json: model,
@@ -482,11 +482,15 @@ export async function gltf2mc(
   const embeddedImages: Array<{ data: Uint8Array; mimeType: string }> = [];
 
   for (const src of gltfSources) {
-    const data = await readFile(src);
+    const data = new Uint8Array(await readFile(src));
     let gltfData: GltfData;
 
     if (isGlb(data)) {
-      gltfData = parseGlbFile(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength));
+      const buffer = data.buffer.slice(
+        data.byteOffset,
+        data.byteOffset + data.byteLength,
+      ) as ArrayBuffer;
+      gltfData = parseGlbFile(buffer);
     } else {
       const content = new TextDecoder("utf-8").decode(data);
       gltfData = parseGltfFile(content);
@@ -506,7 +510,7 @@ export async function gltf2mc(
   // Prefer external textures, fall back to embedded
   if (texSources.length > 0) {
     for (const src of texSources) {
-      const data = await readFile(src);
+      const data = new Uint8Array(await readFile(src));
       const img = await imagescript.decode(data);
       if (img instanceof imagescript.Image) {
         textures.push(img);
@@ -542,7 +546,7 @@ export async function gltf2mc(
     }
   }
 
-  return convertMeshData(meshes, textures, opts);
+  return await convertMeshData(meshes, textures, opts);
 }
 
 /**

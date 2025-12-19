@@ -71,7 +71,7 @@ export default async function decode(
   }
 
   if (!img) {
-    img = await decodeImageFile(path, await readFile(path));
+    img = await decodeImageFile(path, new Uint8Array(await readFile(path)));
   }
 
   if (!clamp) {
