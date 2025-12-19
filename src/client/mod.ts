@@ -49,6 +49,7 @@ export { default as img2nbt, fileToNbt, createNbtStructure, constructDecoded as 
 export { default as img2mcaddon, fileToMcaddon } from "./mcaddon.ts";
 export { default as vox2mcstructure, fileToVoxMcstructure, parseVox, getVoxInfo, constructDecoded as constructVox } from "./vox.ts";
 export { default as obj2mc, fileToObjMc, parseObj, parseObjFromBuffer, getObjInfo, joinModels as joinObjModels } from "./obj.ts";
+export { default as gltf2mc, fileToGltfMc, parseGlbFile, parseGltfFile, gltfToMesh, getGltfInfo, getGltfStats } from "./gltf.ts";
 
 // Image decoding
 export { default as decode, decodeFile, decodeUrl, colorToRGBA, type ImageInput, type DecodeOptions, type DecodedFrames, type ImageFrame } from "./decode.ts";
@@ -99,6 +100,7 @@ export type { NbtOptions } from "./nbt.ts";
 export type { McaddonOptions } from "./mcaddon.ts";
 export type { VoxOptions } from "./vox.ts";
 export type { ObjConvertOptions, ObjConvertResult, MinecraftModel, MinecraftElement, ConversionStats as ObjConversionStats } from "./obj.ts";
+export type { GltfConvertOptions, GltfConvertResult, ConversionStats as GltfConversionStats } from "./gltf.ts";
 
 /**
  * Helper to download generated data as a file
@@ -161,6 +163,17 @@ export function downloadMcaddon(data: Uint8Array, filename = "addon.mcaddon"): v
  * Helper to download OBJ conversion results (JSON model and PNG texture)
  */
 export function downloadObjModel(
+  result: { json: object; png: Uint8Array },
+  baseName = "model"
+): void {
+  downloadBlob(JSON.stringify(result.json, null, 2), `${baseName}.json`, "application/json");
+  downloadBlob(result.png, `${baseName}.png`, "image/png");
+}
+
+/**
+ * Helper to download glTF conversion results (JSON model and PNG texture)
+ */
+export function downloadGltfModel(
   result: { json: object; png: Uint8Array },
   baseName = "model"
 ): void {
