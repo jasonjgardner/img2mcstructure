@@ -201,6 +201,7 @@ export {
   img2mcstructureWithWorker,
   img2schematicWithWorker,
   img2nbtWithWorker,
+  img2rgbscreenWithWorker,
   type WorkerDecodedFrames,
   type SerializableFrame,
 } from "./workerManager.ts";

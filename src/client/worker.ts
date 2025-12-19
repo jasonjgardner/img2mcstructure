@@ -18,6 +18,7 @@ export type WorkerMessageType =
   | "constructMcstructure"
   | "constructSchematic"
   | "constructNbt"
+  | "constructRgbScreen"
   | "serializeNbt"
   | "parseVox"
   | "getNearestColors";
@@ -401,6 +402,174 @@ function batchGetNearestColors(
   return colors.map((color) => getNearestColor(color as unknown as RGB, palette));
 }
 
+// RGB Screen types and constants
+const RGBSCREEN_DATA_VERSION = 4556;
+const PIXELS_PER_BLOCK = 3;
+
+const RGB_SCREEN_COLORS: Array<[number, number, number]> = [
+  [255, 255, 255], // 0: White
+  [255, 0, 0],     // 1: Red
+  [0, 255, 0],     // 2: Green
+  [0, 0, 255],     // 3: Blue
+  [255, 255, 0],   // 4: Yellow
+  [0, 255, 255],   // 5: Cyan
+  [255, 0, 255],   // 6: Magenta
+  [0, 0, 0],       // 7: Black
+];
+
+interface IRgbScreenBlock {
+  nbt: {
+    components: Record<string, unknown>;
+    screen: Int32Array;
+    id: string;
+  };
+  pos: [number, number, number];
+  state: number;
+}
+
+interface IRgbScreenNbtTag {
+  size: [number, number, number];
+  blocks: IRgbScreenBlock[];
+  palette: Array<{ Name: string }>;
+  entities: Record<string, unknown>[];
+  DataVersion: number;
+}
+
+function getNearestRgbScreenColorIndex(color: [number, number, number]): number {
+  let minDistance = Number.POSITIVE_INFINITY;
+  let nearestIndex = 0;
+
+  for (let i = 0; i < RGB_SCREEN_COLORS.length; i++) {
+    const distance = colorDistance(color as unknown as RGB, RGB_SCREEN_COLORS[i] as unknown as RGB);
+    if (distance < minDistance) {
+      minDistance = distance;
+      nearestIndex = i;
+    }
+  }
+
+  return nearestIndex;
+}
+
+function extractRgbScreenData(
+  frame: SerializableFrame,
+  blockX: number,
+  blockY: number
+): Int32Array {
+  const screen = new Int32Array(9);
+  const startX = blockX * PIXELS_PER_BLOCK;
+  const startY = blockY * PIXELS_PER_BLOCK;
+
+  for (let py = 0; py < PIXELS_PER_BLOCK; py++) {
+    for (let px = 0; px < PIXELS_PER_BLOCK; px++) {
+      const imgX = startX + px + 1; // 1-based indexing
+      const imgY = startY + py + 1;
+      const screenIdx = py * PIXELS_PER_BLOCK + px;
+
+      // Check if pixel is within image bounds
+      if (imgX <= frame.width && imgY <= frame.height) {
+        const idx = ((imgY - 1) * frame.width + (imgX - 1)) * 4;
+        const r = frame.data[idx];
+        const g = frame.data[idx + 1];
+        const b = frame.data[idx + 2];
+        const a = frame.data[idx + 3];
+
+        // Use black for transparent pixels
+        if (a < 128) {
+          screen[screenIdx] = 7; // Black
+        } else {
+          screen[screenIdx] = getNearestRgbScreenColorIndex([r, g, b]);
+        }
+      } else {
+        // Out of bounds - use black
+        screen[screenIdx] = 7;
+      }
+    }
+  }
+
+  return screen;
+}
+
+function constructRgbScreen(
+  frames: SerializableFrame[],
+  axis: Axis = "x"
+): IRgbScreenNbtTag {
+  const img = frames[0];
+  const depth = Math.min(frames.length, MAX_DEPTH);
+
+  // Calculate block dimensions (ceil to handle non-divisible sizes)
+  const blocksWide = Math.ceil(img.width / PIXELS_PER_BLOCK);
+  const blocksTall = Math.ceil(img.height / PIXELS_PER_BLOCK);
+
+  const blocks: IRgbScreenBlock[] = [];
+
+  for (let z = 0; z < depth; z++) {
+    const frame = frames[z];
+
+    for (let blockY = 0; blockY < blocksTall; blockY++) {
+      for (let blockX = 0; blockX < blocksWide; blockX++) {
+        const screen = extractRgbScreenData(frame, blockX, blockY);
+
+        // Calculate block position based on axis
+        // For RGB screens, we want a flat wall display
+        // Y in Minecraft is vertical (height)
+        // The image top-left should be at the top-left of the wall
+        const structY = blocksTall - 1 - blockY; // Flip Y so image top is at top
+        const structZ = blockX;
+        const structX = z;
+
+        let pos: [number, number, number];
+        switch (axis) {
+          case "x":
+            pos = [structX, structY, structZ];
+            break;
+          case "y":
+            pos = [structZ, structX, structY];
+            break;
+          case "z":
+            pos = [structZ, structY, structX];
+            break;
+          default:
+            pos = [structX, structY, structZ];
+        }
+
+        blocks.push({
+          nbt: {
+            components: {},
+            screen,
+            id: "rgbscreen:rgb_screen",
+          },
+          pos,
+          state: 0,
+        });
+      }
+    }
+  }
+
+  // Calculate structure size based on axis
+  let size: [number, number, number];
+  switch (axis) {
+    case "x":
+      size = [depth, blocksTall, blocksWide];
+      break;
+    case "y":
+      size = [blocksWide, depth, blocksTall];
+      break;
+    case "z":
+      size = [blocksWide, blocksTall, depth];
+      break;
+    default:
+      size = [depth, blocksTall, blocksWide];
+  }
+
+  return {
+    size,
+    blocks,
+    palette: [{ Name: "rgbscreen:rgb_screen" }],
+    entities: [],
+    DataVersion: RGBSCREEN_DATA_VERSION,
+  };
+}
+
 // VOX parsing
 interface VoxData {
   size: { x: number; y: number; z: number };
@@ -754,6 +923,15 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
           axis: Axis;
         };
         result = constructNbt(frames, palette, axis);
+        break;
+      }
+
+      case "constructRgbScreen": {
+        const { frames, axis } = payload as {
+          frames: SerializableFrame[];
+          axis: Axis;
+        };
+        result = constructRgbScreen(frames, axis);
         break;
       }
 
