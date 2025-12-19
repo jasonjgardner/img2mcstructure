@@ -4,12 +4,13 @@
  * Each block stores a 3x3 grid of pixels in an int array
  */
 
-import type { Axis, RGB } from "../types.ts";
+import type { Axis, RGB, IBlock } from "../types.ts";
 import * as nbt from "nbtify";
 import * as imagescript from "imagescript";
 import { MAX_DEPTH } from "../_constants.ts";
-import { colorDistance } from "../_lib.ts";
+import { colorDistance, getNearestColor } from "../_lib.ts";
 import decode from "../_decode.ts";
+import { type ISchematicTag, type PaletteBlock } from "../schematic/mod.ts";
 
 /**
  * RGB Screen data version (Minecraft 1.21+)
@@ -58,6 +59,12 @@ export interface IRgbScreenNbtTag {
   palette: Array<{ Name: string }>;
   entities: Record<string, unknown>[];
   DataVersion: number;
+}
+
+export interface RgbScreenOptions {
+  axis?: Axis;
+  format?: "rgbscreen" | "schematic";
+  blockPalette?: IBlock[];
 }
 
 /**
@@ -211,6 +218,76 @@ export function constructDecoded(
 }
 
 /**
+ * Convert RGB screen color index to block ID
+ * @param colorIndex RGB screen color index (0-7)
+ * @param blockPalette Block palette to use
+ * @returns Block ID
+ */
+function colorIndexToBlock(colorIndex: number, blockPalette: IBlock[]): string {
+  const color = RGB_SCREEN_COLORS[colorIndex];
+  const nearestBlock = getNearestColor(color, blockPalette);
+  return nearestBlock?.id || "minecraft:air";
+}
+
+/**
+ * Convert RGB screen structure to standard schematic format
+ * @param rgbScreen RGB screen structure
+ * @param blockPalette Block palette to use
+ * @returns Schematic NBT tag
+ */
+function convertToSchematic(rgbScreen: IRgbScreenNbtTag, blockPalette: IBlock[]): ISchematicTag {
+  const schematicBlocks: ISchematicTag["Data"] = [];
+  const schematicPalette: PaletteBlock[] = [];
+  const blockIndexMap = new Map<string, number>();
+
+  for (const block of rgbScreen.blocks) {
+    const screenData = block.nbt.screen;
+    
+    // Convert each pixel in the 3x3 screen to a block
+    for (let i = 0; i < screenData.length; i++) {
+      const colorIndex = screenData[i];
+      const blockId = colorIndexToBlock(colorIndex, blockPalette);
+      
+      let blockIdx = blockIndexMap.get(blockId);
+      if (blockIdx === undefined) {
+        blockIdx = schematicPalette.length;
+        schematicPalette.push(blockId);
+        blockIndexMap.set(blockId, blockIdx);
+      }
+      
+      // Calculate pixel position within the block
+      const pixelX = i % PIXELS_PER_BLOCK;
+      const pixelY = Math.floor(i / PIXELS_PER_BLOCK);
+      const pixelZ = 0; // RGB screens are 2D, no depth within block
+      
+      // Calculate world position
+      const worldX = block.pos[0] * PIXELS_PER_BLOCK + pixelX;
+      const worldY = block.pos[1] * PIXELS_PER_BLOCK + pixelY;
+      const worldZ = block.pos[2] * PIXELS_PER_BLOCK + pixelZ;
+      
+      schematicBlocks.push({
+        pos: [worldX, worldY, worldZ],
+        state: blockIdx
+      });
+    }
+  }
+
+  return {
+    x: 0,
+    y: 0,
+    z: 0,
+    Width: rgbScreen.size[0] * PIXELS_PER_BLOCK,
+    Height: rgbScreen.size[1] * PIXELS_PER_BLOCK,
+    Length: rgbScreen.size[2] * PIXELS_PER_BLOCK,
+    Data: schematicBlocks,
+    Blocks: schematicPalette,
+    Entities: [],
+    TileEntities: [],
+    Materials: "Alpha"
+  };
+}
+
+/**
  * Create an RGB Screen NBT structure from image frames
  * @param frames Image frames
  * @param axis Axis orientation
@@ -234,15 +311,31 @@ export async function createRgbScreenNbtStructure(
 }
 
 /**
- * Decode an image and convert it to an RGB Screen NBT structure
+ * Decode an image and convert it to an RGB Screen structure
  * @param imgSrc Image source path or URL
- * @param axis Axis orientation
+ * @param options Conversion options
  * @returns NBT structure data as Uint8Array
  */
 export default async function img2rgbscreen(
   imgSrc: string,
-  axis: Axis = "x",
+  options: RgbScreenOptions = {},
 ): Promise<Uint8Array> {
+  const { axis = "x", format = "rgbscreen", blockPalette = [] } = options;
   const img = await decode(imgSrc);
+  
+  if (format === "schematic") {
+    // Convert to RGB screen structure first
+    const rgbScreen = constructDecoded(img, axis);
+    // Then convert to schematic format
+    const schematic = convertToSchematic(rgbScreen, blockPalette);
+    
+    return await nbt.write(schematic as unknown as nbt.NBTData, {
+      endian: "big",
+      compression: null,
+      bedrockLevel: false,
+    });
+  }
+  
+  // Default: return RGB screen NBT structure
   return await createRgbScreenNbtStructure(img, axis);
 }
