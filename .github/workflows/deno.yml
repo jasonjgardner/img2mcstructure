@@ -23,7 +23,7 @@ jobs:
       - run: |
           mkdir -p ./dist
           bun build ./app/index.tsx > ./dist/bundle.js
-      - run: bunx tailwindcss -i ./app/assets/style.css -o ./dist/style.css
+      - run: bunx tailwindcss@3 -i ./app/assets/style.css -o ./dist/style.css
       - name: Update deno.json
         run: |
             jq '.imports.imagescript = "https://deno.land/x/imagescript@1.3.0/mod.ts"' deno.json > deno.json.tmp

@@ -1,4 +1,4 @@
-/** @type {import('npm:tailwindcss').Config} */
+/** @type {import('tailwindcss').Config} */
 export default {
   content: ["./public/**/*.html", "./app/**/*.{js,jsx,ts,tsx,css}"],
   theme: {
