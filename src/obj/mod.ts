@@ -262,7 +262,7 @@ export async function obj2mc(
   // Read textures
   const textures: imagescript.Image[] = [];
   for (const src of texSources) {
-    const data = await readFile(src);
+    const data = new Uint8Array(await readFile(src));
     const img = await imagescript.decode(data);
     if (img instanceof imagescript.Image) {
       textures.push(img);
@@ -290,17 +290,17 @@ export async function obj2mc(
   }
 
   // Convert data
-  return convertObjData(objs, textures, opts);
+  return await convertObjData(objs, textures, opts);
 }
 
 /**
  * Convert parsed OBJ data to Minecraft model
  */
-export function convertObjData(
+export async function convertObjData(
   objs: ObjData[],
   textures: imagescript.Image[],
   options: Required<ObjConvertOptions>
-): ObjConvertResult {
+): Promise<ObjConvertResult> {
   const nFrames = objs.length;
   const nTextures = textures.length;
   const nFaces = objs[0].faces.length;
@@ -493,7 +493,7 @@ export function convertObjData(
   }
 
   // Encode PNG
-  const pngData = out.encodeSync();
+  const pngData = await out.encode();
 
   return {
     json: model,

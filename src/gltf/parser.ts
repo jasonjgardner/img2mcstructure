@@ -109,15 +109,21 @@ interface GltfJson {
   }>;
 }
 
+type GltfAccessor = NonNullable<GltfJson["accessors"]>[number];
+type GltfBufferViews = NonNullable<GltfJson["bufferViews"]>;
+
 /**
  * Read accessor data from buffer
  */
 function readAccessor(
-  accessor: GltfJson["accessors"][0],
-  bufferViews: GltfJson["bufferViews"],
+  accessor: GltfAccessor,
+  bufferViews: GltfBufferViews,
   buffers: ArrayBuffer[]
 ): Float32Array | Uint16Array | Uint32Array | Int8Array | Uint8Array | Int16Array {
   const bufferView = bufferViews[accessor.bufferView ?? 0];
+  if (!bufferView) {
+    throw new Error("Missing bufferView for accessor");
+  }
   const buffer = buffers[bufferView.buffer];
   const byteOffset = (bufferView.byteOffset ?? 0) + (accessor.byteOffset ?? 0);
   const componentInfo = COMPONENT_TYPES[accessor.componentType];

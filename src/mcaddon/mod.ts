@@ -348,7 +348,10 @@ async function createFlipbook({
     for (let y = 0; y < gridSizeY; y++) {
       const sliceId = `${namespace}_${x}_${y}_1`;
 
-      const flatFrames: imagescript.Image[] = frames.flat();
+      const flatFrames =
+        (frames as Array<imagescript.Image | imagescript.Frame>).flat().map((frame) =>
+          frame.clone()
+        );
 
       const slice = await series2atlas(
         flatFrames.map((frame) =>
@@ -382,7 +385,10 @@ async function createFlipbook({
 
       if (pbr) {
         try {
-          const flatMerFrames: imagescript.Image[] = merTexture.flat();
+          const flatMerFrames =
+            (merTexture as Array<imagescript.Image | imagescript.Frame>).flat().map((frame) =>
+              frame.clone()
+            );
           addon.file(
             `rp/textures/blocks/${sliceId}_mer.png`,
             await (
@@ -401,7 +407,10 @@ async function createFlipbook({
         }
 
         try {
-          const flatNormalFrames: imagescript.Image[] = normalTexture.flat();
+          const flatNormalFrames =
+            (normalTexture as Array<imagescript.Image | imagescript.Frame>).flat().map((frame) =>
+              frame.clone()
+            );
           addon.file(
             `rp/textures/blocks/${sliceId}_normal.png`,
             await (
@@ -692,7 +701,7 @@ export default async function img2mcaddon(
 
   addon.file("rp/textures/terrain_texture.json", terrainTextureJson);
 
-  const icon = decodedFrames[0].clone().resize(150, 150).encode();
+  const icon = await decodedFrames[0].clone().resize(150, 150).encode();
   addon.file("rp/pack_icon.png", icon);
   addon.file("bp/pack_icon.png", icon);
 
