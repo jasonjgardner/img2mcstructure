@@ -46,6 +46,7 @@ export { default as img2mcstructure, fileToMcstructure, createMcStructure, const
 export { default as img2mcfunction, fileToMcfunction, framesToMcfunction } from "./mcfunction.ts";
 export { default as img2schematic, fileToSchematic, createSchematic, constructDecoded as constructSchematic } from "./schematic.ts";
 export { default as img2nbt, fileToNbt, createNbtStructure, constructDecoded as constructNbt } from "./nbt.ts";
+export { default as img2rgbscreen, fileToRgbScreenNbt, createRgbScreenNbtStructure, constructDecoded as constructRgbScreen } from "./nbt_rgbscreen.ts";
 export { default as img2mcaddon, fileToMcaddon } from "./mcaddon.ts";
 export { default as vox2mcstructure, fileToVoxMcstructure, parseVox, getVoxInfo, constructDecoded as constructVox } from "./vox.ts";
 
@@ -71,6 +72,7 @@ export {
 export {
   BLOCK_VERSION,
   NBT_DATA_VERSION,
+  RGBSCREEN_DATA_VERSION,
   BLOCK_FORMAT_VERSION,
   DEFAULT_BLOCK,
   MASK_BLOCK,
@@ -95,6 +97,7 @@ export type { ConvertOptions } from "./mcstructure.ts";
 export type { McfunctionOptions } from "./mcfunction.ts";
 export type { SchematicOptions } from "./schematic.ts";
 export type { NbtOptions } from "./nbt.ts";
+export type { RgbScreenOptions } from "./nbt_rgbscreen.ts";
 export type { McaddonOptions } from "./mcaddon.ts";
 export type { VoxOptions } from "./vox.ts";
 
@@ -145,6 +148,13 @@ export function downloadSchematic(data: Uint8Array, filename = "structure.schema
  * Helper to download NBT data
  */
 export function downloadNbt(data: Uint8Array, filename = "structure.nbt"): void {
+  downloadBlob(data, filename);
+}
+
+/**
+ * Helper to download RGB Screen NBT data
+ */
+export function downloadRgbScreenNbt(data: Uint8Array, filename = "rgbscreen.nbt"): void {
   downloadBlob(data, filename);
 }
 

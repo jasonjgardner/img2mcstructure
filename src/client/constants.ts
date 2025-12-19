@@ -14,6 +14,11 @@ export const BLOCK_VERSION = 18153475;
 export const NBT_DATA_VERSION = 3953;
 
 /**
+ * RGB Screen NBT data version (Minecraft 1.21+).
+ */
+export const RGBSCREEN_DATA_VERSION = 4556;
+
+/**
  * Minecraft behavior block format version.
  */
 export const BLOCK_FORMAT_VERSION = "1.20.80";

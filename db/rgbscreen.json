@@ -1,0 +1,42 @@
+[
+  {
+    "index": 0,
+    "color": [255, 255, 255],
+    "hexColor": "#ffffff"
+  },
+  {
+    "index": 1,
+    "color": [255, 0, 0],
+    "hexColor": "#ff0000"
+  },
+  {
+    "index": 2,
+    "color": [0, 255, 0],
+    "hexColor": "#00ff00"
+  },
+  {
+    "index": 3,
+    "color": [0, 0, 255],
+    "hexColor": "#0000ff"
+  },
+  {
+    "index": 4,
+    "color": [255, 255, 0],
+    "hexColor": "#ffff00"
+  },
+  {
+    "index": 5,
+    "color": [0, 255, 255],
+    "hexColor": "#00ffff"
+  },
+  {
+    "index": 6,
+    "color": [255, 0, 255],
+    "hexColor": "#ff00ff"
+  },
+  {
+    "index": 7,
+    "color": [0, 0, 0],
+    "hexColor": "#000000"
+  }
+]
