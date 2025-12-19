@@ -1,6 +1,6 @@
 {
   "name": "@jjg/img2mcstructure",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "exports": "./mod.ts",
   "fmt": {
     "include": [
