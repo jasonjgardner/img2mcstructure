@@ -243,6 +243,119 @@ function constructNbt(frames, palette, axis = "x") {
 function batchGetNearestColors(colors, palette) {
   return colors.map((color) => getNearestColor(color, palette));
 }
+var RGBSCREEN_DATA_VERSION = 4556;
+var PIXELS_PER_BLOCK = 3;
+var RGB_SCREEN_COLORS = [
+  [255, 255, 255],
+  [255, 0, 0],
+  [0, 255, 0],
+  [0, 0, 255],
+  [255, 255, 0],
+  [0, 255, 255],
+  [255, 0, 255],
+  [0, 0, 0]
+];
+function getNearestRgbScreenColorIndex(color) {
+  let minDistance = Number.POSITIVE_INFINITY;
+  let nearestIndex = 0;
+  for (let i = 0;i < RGB_SCREEN_COLORS.length; i++) {
+    const distance = colorDistance(color, RGB_SCREEN_COLORS[i]);
+    if (distance < minDistance) {
+      minDistance = distance;
+      nearestIndex = i;
+    }
+  }
+  return nearestIndex;
+}
+function extractRgbScreenData(frame, blockX, blockY) {
+  const screen = new Int32Array(9);
+  const startX = blockX * PIXELS_PER_BLOCK;
+  const startY = blockY * PIXELS_PER_BLOCK;
+  for (let py = 0;py < PIXELS_PER_BLOCK; py++) {
+    for (let px = 0;px < PIXELS_PER_BLOCK; px++) {
+      const imgX = startX + px + 1;
+      const imgY = startY + py + 1;
+      const screenIdx = py * PIXELS_PER_BLOCK + px;
+      if (imgX <= frame.width && imgY <= frame.height) {
+        const idx = ((imgY - 1) * frame.width + (imgX - 1)) * 4;
+        const r = frame.data[idx];
+        const g = frame.data[idx + 1];
+        const b = frame.data[idx + 2];
+        const a = frame.data[idx + 3];
+        if (a < 128) {
+          screen[screenIdx] = 7;
+        } else {
+          screen[screenIdx] = getNearestRgbScreenColorIndex([r, g, b]);
+        }
+      } else {
+        screen[screenIdx] = 7;
+      }
+    }
+  }
+  return screen;
+}
+function constructRgbScreen(frames, axis = "x") {
+  const img = frames[0];
+  const depth = Math.min(frames.length, MAX_DEPTH);
+  const blocksWide = Math.ceil(img.width / PIXELS_PER_BLOCK);
+  const blocksTall = Math.ceil(img.height / PIXELS_PER_BLOCK);
+  const blocks = [];
+  for (let z = 0;z < depth; z++) {
+    const frame = frames[z];
+    for (let blockY = 0;blockY < blocksTall; blockY++) {
+      for (let blockX = 0;blockX < blocksWide; blockX++) {
+        const screen = extractRgbScreenData(frame, blockX, blockY);
+        const structY = blocksTall - 1 - blockY;
+        const structZ = blockX;
+        const structX = z;
+        let pos;
+        switch (axis) {
+          case "x":
+            pos = [structX, structY, structZ];
+            break;
+          case "y":
+            pos = [structZ, structX, structY];
+            break;
+          case "z":
+            pos = [structZ, structY, structX];
+            break;
+          default:
+            pos = [structX, structY, structZ];
+        }
+        blocks.push({
+          nbt: {
+            components: {},
+            screen,
+            id: "rgbscreen:rgb_screen"
+          },
+          pos,
+          state: 0
+        });
+      }
+    }
+  }
+  let size;
+  switch (axis) {
+    case "x":
+      size = [depth, blocksTall, blocksWide];
+      break;
+    case "y":
+      size = [blocksWide, depth, blocksTall];
+      break;
+    case "z":
+      size = [blocksWide, blocksTall, depth];
+      break;
+    default:
+      size = [depth, blocksTall, blocksWide];
+  }
+  return {
+    size,
+    blocks,
+    palette: [{ Name: "rgbscreen:rgb_screen" }],
+    entities: [],
+    DataVersion: RGBSCREEN_DATA_VERSION
+  };
+}
 function readInt32(view, offset) {
   return view.getInt32(offset, true);
 }
@@ -487,6 +600,11 @@ self.onmessage = async (event) => {
       case "constructNbt": {
         const { frames, palette, axis } = payload;
         result = constructNbt(frames, palette, axis);
+        break;
+      }
+      case "constructRgbScreen": {
+        const { frames, axis } = payload;
+        result = constructRgbScreen(frames, axis);
         break;
       }
       case "serializeNbt": {

@@ -205,6 +205,20 @@ class ConversionWorkerManager {
   }
 
   /**
+   * Construct RGB Screen NBT data from frames in the worker
+   * RGB Screen uses a fixed 8-color palette, no external palette needed
+   */
+  async constructRgbScreen(
+    frames: WorkerDecodedFrames,
+    axis: Axis = "x"
+  ): Promise<unknown> {
+    return this.sendMessage<unknown>("constructRgbScreen", {
+      frames,
+      axis,
+    });
+  }
+
+  /**
    * Serialize data to NBT format in the worker
    * @param data Structure data
    * @param options NBT options
@@ -395,6 +409,34 @@ export async function img2nbtWithWorker(
   const structure = await manager.constructNbt(frames, blockPalette, axis);
 
   // Serialize to NBT
+  return manager.serializeNbt(structure, { endian: "big" });
+}
+
+/**
+ * Convert a file to RGB Screen NBT using the worker
+ * Uses the RGB Screen mod's fixed 8-color palette
+ * @param file Input file
+ * @param options Conversion options
+ * @returns RGB Screen NBT data as Uint8Array
+ */
+export async function img2rgbscreenWithWorker(
+  file: File,
+  options: {
+    axis?: Axis;
+    decodeOptions?: { clamp?: boolean };
+  } = {}
+): Promise<Uint8Array> {
+  const manager = getWorkerManager();
+  const { axis = "x", decodeOptions } = options;
+
+  // Decode the image
+  const buffer = await file.arrayBuffer();
+  const frames = await manager.decode(buffer, decodeOptions);
+
+  // Construct the RGB Screen structure (no external palette needed)
+  const structure = await manager.constructRgbScreen(frames, axis);
+
+  // Serialize to NBT (big endian for Java Edition format)
   return manager.serializeNbt(structure, { endian: "big" });
 }
 
