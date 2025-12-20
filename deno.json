@@ -1,6 +1,6 @@
 {
   "name": "@jjg/img2mcstructure",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "description": "Convert images and 3D models into Minecraft Bedrock structures and related formats.",
   "license": "GPL-3.0-only",
   "exports": "./mod.ts",
