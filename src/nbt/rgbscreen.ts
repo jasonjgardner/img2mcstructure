@@ -245,9 +245,9 @@ function convertToSchematic(rgbScreen: IRgbScreenNbtTag, blockPalette: IBlock[])
   const expandedDepth = depth * PIXELS_PER_BLOCK;
   const totalBlocks = expandedWidth * expandedHeight * expandedDepth;
   
-  // Initialize flat arrays with air
-  const blocksArray = new Uint8Array(totalBlocks);
-  const dataArray = new Uint8Array(totalBlocks);
+  // Initialize flat arrays with air (Int8Array for nbtify TAG_Byte_Array)
+  const blocksArray = new Int8Array(totalBlocks);
+  const dataArray = new Int8Array(totalBlocks);
   
   // Convert each RGB screen block to individual blocks
   for (const block of blocks) {
