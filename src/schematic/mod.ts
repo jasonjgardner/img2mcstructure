@@ -19,6 +19,7 @@ export interface ISchemaBlock {
 
 /**
  * Standard Minecraft schematic format (flat arrays)
+ * Note: nbtify requires Int8Array for TAG_Byte_Array serialization
  */
 export interface ISchematicTagV2 {
   x: number;
@@ -27,9 +28,9 @@ export interface ISchematicTagV2 {
   Width: number;
   Height: number;
   Length: number;
-  Blocks: Uint8Array;
-  Data: Uint8Array;
-  AddBlocks: Uint8Array | null;
+  Blocks: Int8Array;
+  Data: Int8Array;
+  AddBlocks: Int8Array | null;
   Entities: unknown[];
   TileEntities: unknown[];
   Materials: string;
@@ -403,9 +404,9 @@ function convertToFlatArray(legacy: ISchematicTag): ISchematicTagV2 {
   const { Width, Height, Length, Data, Blocks } = legacy;
   const totalBlocks = Width * Height * Length;
   
-  // Initialize flat arrays with air
-  const blocksArray = new Uint8Array(totalBlocks);
-  const dataArray = new Uint8Array(totalBlocks);
+  // Initialize flat arrays with air (Int8Array for nbtify TAG_Byte_Array)
+  const blocksArray = new Int8Array(totalBlocks);
+  const dataArray = new Int8Array(totalBlocks);
   
   // Convert position-based blocks to flat arrays
   for (const block of Data) {
