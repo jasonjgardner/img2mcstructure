@@ -10,7 +10,7 @@ import * as imagescript from "imagescript";
 import { MAX_DEPTH } from "../_constants.ts";
 import { colorDistance, getNearestColor } from "../_lib.ts";
 import decode from "../_decode.ts";
-import { type ISchematicTag, type PaletteBlock } from "../schematic/mod.ts";
+import { type ISchematicTagV2, blockIdToClassic } from "../schematic/mod.ts";
 
 /**
  * RGB Screen data version (Minecraft 1.21+)
@@ -233,27 +233,32 @@ function colorIndexToBlock(colorIndex: number, blockPalette: IBlock[]): string {
  * Convert RGB screen structure to standard schematic format
  * @param rgbScreen RGB screen structure
  * @param blockPalette Block palette to use
- * @returns Schematic NBT tag
+ * @returns Schematic NBT tag with flat arrays
  */
-function convertToSchematic(rgbScreen: IRgbScreenNbtTag, blockPalette: IBlock[]): ISchematicTag {
-  const schematicBlocks: ISchematicTag["Data"] = [];
-  const schematicPalette: PaletteBlock[] = [];
-  const blockIndexMap = new Map<string, number>();
-
-  for (const block of rgbScreen.blocks) {
+function convertToSchematic(rgbScreen: IRgbScreenNbtTag, blockPalette: IBlock[]): ISchematicTagV2 {
+  const { size, blocks } = rgbScreen;
+  const [width, height, depth] = size;
+  
+  // Calculate expanded dimensions (each RGB screen block becomes PIXELS_PER_BLOCK blocks)
+  const expandedWidth = width * PIXELS_PER_BLOCK;
+  const expandedHeight = height * PIXELS_PER_BLOCK;
+  const expandedDepth = depth * PIXELS_PER_BLOCK;
+  const totalBlocks = expandedWidth * expandedHeight * expandedDepth;
+  
+  // Initialize flat arrays with air
+  const blocksArray = new Uint8Array(totalBlocks);
+  const dataArray = new Uint8Array(totalBlocks);
+  
+  // Convert each RGB screen block to individual blocks
+  for (const block of blocks) {
     const screenData = block.nbt.screen;
     
     // Convert each pixel in the 3x3 screen to a block
     for (let i = 0; i < screenData.length; i++) {
       const colorIndex = screenData[i];
-      const blockId = colorIndexToBlock(colorIndex, blockPalette);
-      
-      let blockIdx = blockIndexMap.get(blockId);
-      if (blockIdx === undefined) {
-        blockIdx = schematicPalette.length;
-        schematicPalette.push(blockId);
-        blockIndexMap.set(blockId, blockIdx);
-      }
+      const color = RGB_SCREEN_COLORS[colorIndex];
+      const nearestBlock = getNearestColor(color, blockPalette);
+      const blockId = nearestBlock?.id || "minecraft:air";
       
       // Calculate pixel position within the block
       const pixelX = i % PIXELS_PER_BLOCK;
@@ -265,22 +270,26 @@ function convertToSchematic(rgbScreen: IRgbScreenNbtTag, blockPalette: IBlock[])
       const worldY = block.pos[1] * PIXELS_PER_BLOCK + pixelY;
       const worldZ = block.pos[2] * PIXELS_PER_BLOCK + pixelZ;
       
-      schematicBlocks.push({
-        pos: [worldX, worldY, worldZ],
-        state: blockIdx
-      });
+      // Convert to flat array index: (Y×length + Z)×width + X
+      const index = (worldY * expandedDepth + worldZ) * expandedWidth + worldX;
+      
+      if (index >= 0 && index < totalBlocks) {
+        blocksArray[index] = blockIdToClassic(blockId);
+        dataArray[index] = 0; // No block data for now
+      }
     }
   }
-
+  
   return {
     x: 0,
     y: 0,
     z: 0,
-    Width: rgbScreen.size[0] * PIXELS_PER_BLOCK,
-    Height: rgbScreen.size[1] * PIXELS_PER_BLOCK,
-    Length: rgbScreen.size[2] * PIXELS_PER_BLOCK,
-    Data: schematicBlocks,
-    Blocks: schematicPalette,
+    Width: expandedWidth,
+    Height: expandedHeight,
+    Length: expandedDepth,
+    Blocks: blocksArray,
+    Data: dataArray,
+    AddBlocks: null,
     Entities: [],
     TileEntities: [],
     Materials: "Alpha"
